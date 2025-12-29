@@ -1,101 +1,181 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { ProgressBar } from "@/components/ProgressBar";
+
+interface Stats {
+  learnedCount: number;
+  dueReviewsCount: number;
+  streak: number;
+  levelProgress: { level: number; learned: number; total: number }[];
+  todayStats: { newWordsToday: number; reviewsToday: number };
+}
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/stats");
+      const data = await res.json();
+      setStats(data);
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-xl text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Failed to load dashboard.</p>
+      </div>
+    );
+  }
+
+  const totalWords = stats.levelProgress.reduce((sum, l) => sum + l.total, 0);
+  const totalLearned = stats.levelProgress.reduce(
+    (sum, l) => sum + l.learned,
+    0
+  );
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="max-w-2xl mx-auto">
+      {/* Welcome Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Welcome Back!
+        </h1>
+        <p className="text-gray-600">
+          Ready to continue your Chinese learning journey?
+        </p>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-xl shadow p-4 text-center">
+          <div className="text-3xl font-bold text-red-600">
+            {stats.streak}
+          </div>
+          <div className="text-sm text-gray-500">Day Streak</div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div className="bg-white rounded-xl shadow p-4 text-center">
+          <div className="text-3xl font-bold text-blue-600">
+            {stats.learnedCount}
+          </div>
+          <div className="text-sm text-gray-500">Words Learned</div>
+        </div>
+        <div className="bg-white rounded-xl shadow p-4 text-center">
+          <div className="text-3xl font-bold text-orange-600">
+            {stats.dueReviewsCount}
+          </div>
+          <div className="text-sm text-gray-500">Due Reviews</div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <Link
+          href="/learn"
+          className="bg-red-600 hover:bg-red-700 text-white rounded-xl p-6 text-center transition-colors"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <div className="text-3xl mb-2">📖</div>
+          <div className="text-lg font-medium">Learn New Words</div>
+          <div className="text-sm opacity-80">
+            {totalWords - totalLearned} words remaining
+          </div>
+        </Link>
+        <Link
+          href="/review"
+          className={`rounded-xl p-6 text-center transition-colors ${
+            stats.dueReviewsCount > 0
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-gray-200 text-gray-500"
+          }`}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <div className="text-3xl mb-2">🔄</div>
+          <div className="text-lg font-medium">Review</div>
+          <div className="text-sm opacity-80">
+            {stats.dueReviewsCount > 0
+              ? `${stats.dueReviewsCount} cards due`
+              : "All caught up!"}
+          </div>
+        </Link>
+      </div>
+
+      {/* Today's Activity */}
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Today&apos;s Activity
+        </h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {stats.todayStats.newWordsToday}
+            </div>
+            <div className="text-sm text-gray-600">New Words</div>
+          </div>
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.todayStats.reviewsToday}
+            </div>
+            <div className="text-sm text-gray-600">Reviews Done</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress by Level */}
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Progress by HSK Level
+        </h2>
+        <div className="space-y-4">
+          {stats.levelProgress.map((level) => (
+            <ProgressBar
+              key={level.level}
+              current={level.learned}
+              total={level.total}
+              label={`HSK ${level.level}`}
+              color={
+                level.level === 1 ? "green" : level.level === 2 ? "blue" : "red"
+              }
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 gap-4">
+        <Link
+          href="/practice"
+          className="bg-white hover:bg-gray-50 rounded-xl shadow p-4 text-center transition-colors"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div className="text-2xl mb-1">✏️</div>
+          <div className="font-medium text-gray-900">Practice</div>
+        </Link>
+        <Link
+          href="/words"
+          className="bg-white hover:bg-gray-50 rounded-xl shadow p-4 text-center transition-colors"
+        >
+          <div className="text-2xl mb-1">📖</div>
+          <div className="font-medium text-gray-900">Browse Words</div>
+        </Link>
+      </div>
     </div>
   );
 }

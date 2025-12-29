@@ -34,3 +34,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database
+*.db
+
+# python virtual env
+/venv/
+
+# audio files (generated)
+/public/audio/
