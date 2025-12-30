@@ -81,22 +81,17 @@ The system SHALL provide a reference page listing all grammar patterns with exam
 
 ### Requirement: User Preferences
 
-The system SHALL store user preferences for daily limits and audio settings.
+The system SHALL store user preferences for daily limits, audio settings, **and sentence pinyin display preference**.
 
-#### Scenario: Set daily word limit
+#### Scenario: Store pinyin preference
 
-- **WHEN** user changes daily new word limit in settings
-- **THEN** the system stores preference and applies to future learn sessions
+- **WHEN** a user toggles the sentence pinyin setting
+- **THEN** the system persists the showSentencePinyin boolean in the settings table
 
-#### Scenario: Toggle audio
+#### Scenario: Retrieve pinyin preference
 
-- **WHEN** user toggles audio setting
-- **THEN** the system enables/disables automatic audio playback
-
-#### Scenario: Persist preferences
-
-- **WHEN** user sets preferences
-- **THEN** the system stores them in localStorage for persistence across sessions
+- **WHEN** loading sentence display components
+- **THEN** the system returns showSentencePinyin setting (defaults to false)
 
 ### Requirement: Manual Learned Toggle
 

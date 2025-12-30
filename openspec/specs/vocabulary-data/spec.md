@@ -19,17 +19,17 @@ The system SHALL store Chinese vocabulary words with simplified hanzi, tradition
 
 ### Requirement: Sentence Storage
 
-The system SHALL store Chinese sentences with Chinese text, English translation, pinyin, difficulty score, audio path, and tokenized word array.
+The system SHALL store Chinese sentences with Chinese text, English translation, **pinyin**, difficulty score, audio path, and tokenized word array.
 
-#### Scenario: Store filtered sentence
+#### Scenario: Store sentence with pinyin
 
-- **WHEN** a Tatoeba sentence passes the 80% HSK coverage filter
-- **THEN** the system stores the sentence with its tokens, difficulty score, and generated pinyin
+- **WHEN** pinyin is generated for a sentence
+- **THEN** the system stores the space-separated pinyin string in the pinyin field
 
-#### Scenario: Retrieve sentences for word
+#### Scenario: Retrieve sentence with pinyin
 
-- **WHEN** requesting example sentences for a word
-- **THEN** the system returns sentences containing that word, ordered by difficulty
+- **WHEN** requesting a sentence
+- **THEN** the system returns chinese, english, pinyin, difficultyScore, audioPath, and tokens
 
 ### Requirement: Word-Sentence Linking
 
@@ -74,6 +74,11 @@ The system SHALL generate pinyin with tone marks for all imported sentences.
 
 - **WHEN** sentences are imported or pinyin is missing
 - **THEN** the system generates pinyin using pypinyin library with tone marks (e.g., "wǒ hěn hǎo")
+
+#### Scenario: Handle punctuation in pinyin
+
+- **WHEN** a sentence contains Chinese punctuation
+- **THEN** the system preserves punctuation in the pinyin output
 
 ### Requirement: HSK Data Import
 
