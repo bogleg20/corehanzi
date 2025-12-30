@@ -49,14 +49,14 @@ export function SentenceCard({
 
   return (
     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-xl text-gray-900 mb-1">{renderChinese()}</p>
+          <p className="text-xl text-gray-900 leading-relaxed mb-1">{renderChinese()}</p>
           {showPinyin && sentence.pinyin && (
-            <p className="text-red-600 text-sm mb-2">{sentence.pinyin}</p>
+            <p className="text-red-600 text-base mb-2">{sentence.pinyin}</p>
           )}
           {showTranslation && (
-            <p className="text-gray-600">{sentence.english}</p>
+            <p className="text-gray-600 text-base">{sentence.english}</p>
           )}
         </div>
         {sentence.audioPath && (
@@ -82,12 +82,12 @@ export function SentenceCardInteractive({
 }: SentenceCardInteractiveProps) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-start justify-between mb-2">
-        <p className="text-2xl text-gray-900">{sentence.chinese}</p>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <p className="text-2xl text-gray-900 leading-relaxed">{sentence.chinese}</p>
         {sentence.audioPath && <AudioButton src={sentence.audioPath} />}
       </div>
       {showPinyin && sentence.pinyin && (
-        <p className="text-red-600 text-sm mb-4">{sentence.pinyin}</p>
+        <p className="text-red-600 text-base mb-4">{sentence.pinyin}</p>
       )}
 
       {revealed ? (

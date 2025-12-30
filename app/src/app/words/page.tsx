@@ -62,11 +62,12 @@ export default function WordsPage() {
 
       const res = await fetch(`/api/words?${params}`);
       const data = await res.json();
-      setWords(data.words);
-      setTotalPages(Math.ceil(data.total / WORDS_PER_PAGE));
+      setWords(data.words || []);
+      setTotalPages(Math.ceil((data.total || 0) / WORDS_PER_PAGE));
       setLearnedWordIds(new Set(data.learnedWordIds || []));
     } catch (error) {
       console.error("Failed to fetch words:", error);
+      setWords([]);
     } finally {
       setLoading(false);
     }
@@ -297,18 +298,18 @@ export default function WordsPage() {
                 ) : sentences.length === 0 ? (
                   <div className="text-sm text-gray-400">No examples found</div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {sentences.map((sentence) => (
                       <div
                         key={sentence.id}
-                        className="text-sm border-l-2 border-gray-200 pl-3"
+                        className="border-l-2 border-gray-200 pl-4 py-1"
                       >
                         <div className="flex items-start gap-2">
                           {sentence.audioPath && (
                             <AudioButton src={sentence.audioPath} size="sm" />
                           )}
                           <div className="flex-1">
-                            <div className="text-gray-900">
+                            <div className="text-lg text-gray-900 leading-relaxed">
                               {sentence.tokens && tokenData ? (
                                 <TokenizedSentence
                                   tokens={sentence.tokens}
@@ -320,11 +321,11 @@ export default function WordsPage() {
                               )}
                             </div>
                             {showSentencePinyin && sentence.pinyin && (
-                              <div className="text-red-600 text-xs">
+                              <div className="text-red-600 text-sm mt-1">
                                 {sentence.pinyin}
                               </div>
                             )}
-                            <div className="text-gray-500 text-xs">
+                            <div className="text-gray-500 text-sm mt-1">
                               {sentence.english}
                             </div>
                           </div>
