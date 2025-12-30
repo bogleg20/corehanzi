@@ -41,5 +41,3 @@ next-env.d.ts
 # python virtual env
 /venv/
 
-# audio files (generated)
-/public/audio/
