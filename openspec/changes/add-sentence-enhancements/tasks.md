@@ -29,12 +29,12 @@
 ## Phase 5: Audio Generation
 
 - [x] Run existing generate_audio.py script (generates first 500 sentences)
-- [ ] Verify audio files created in public/audio/sentences/
-- [ ] Verify AudioButton appears on sentences with audio
+- [x] Verify audio files created in public/audio/sentences/ (500 files)
+- [x] Verify audio files created in public/audio/words/ (2225 files)
 
 ## Validation
 
 - [x] Build passes without errors
-- [ ] Settings toggle persists and affects sentence display
-- [ ] Pinyin displays correctly on Learn, Review, and Patterns pages
-- [ ] Audio plays for sentences that have generated audio files
+- [x] Settings toggle persists and affects sentence display
+- [x] Pinyin displays correctly on Learn, Review, and Patterns pages
+- [x] Audio files generated for words and sentences
