@@ -101,7 +101,7 @@ export async function getSentencesForWord(wordId: number): Promise<Sentence[]> {
     .from(sentences)
     .where(inArray(sentences.id, sentenceIds))
     .orderBy(asc(sentences.difficultyScore))
-    .limit(5)
+    .limit(20)
     .all();
 }
 

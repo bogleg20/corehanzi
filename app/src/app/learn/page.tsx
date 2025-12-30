@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Word, Sentence } from "@/lib/db/schema";
 import { WordCard } from "@/components/WordCard";
-import { SentenceCard } from "@/components/SentenceCard";
+import { SentenceCarousel } from "@/components/SentenceCarousel";
 import { ProgressBar } from "@/components/ProgressBar";
 import { TokenInfo } from "@/components/TokenizedSentence";
 
@@ -49,7 +49,7 @@ export default function LearnPage() {
     try {
       const res = await fetch(`/api/words/${wordId}/sentences`);
       const data = await res.json();
-      setSentences(data.sentences.slice(0, 2)); // Show max 2 sentences
+      setSentences(data.sentences);
       setTokenData(data.tokenData || {});
     } catch (error) {
       console.error("Failed to fetch sentences:", error);
@@ -156,34 +156,15 @@ export default function LearnPage() {
         )}
       </div>
 
-      {/* Example Sentences */}
+      {/* Example Sentences Carousel */}
       {showDetails && sentences.length > 0 && (
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">
-              Example Sentences
-            </h3>
-            <button
-              onClick={() => setShowPinyin(!showPinyin)}
-              className={`text-xs px-2 py-1 rounded transition-colors ${
-                showPinyin
-                  ? "bg-red-100 text-red-700"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {showPinyin ? "Hide Pinyin" : "Show Pinyin"}
-            </button>
-          </div>
-          {sentences.map((sentence) => (
-            <SentenceCard
-              key={sentence.id}
-              sentence={sentence}
-              highlightWord={currentWord.hanzi}
-              showPinyin={showPinyin}
-              tokenData={tokenData}
-            />
-          ))}
-        </div>
+        <SentenceCarousel
+          sentences={sentences}
+          highlightWord={currentWord.hanzi}
+          showPinyin={showPinyin}
+          tokenData={tokenData}
+          onPinyinToggle={() => setShowPinyin(!showPinyin)}
+        />
       )}
 
       {/* Grade Buttons - Fixed at bottom */}
