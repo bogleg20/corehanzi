@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Word, Sentence } from "@/lib/db/schema";
 import { WordCardCompact } from "@/components/WordCard";
 import { TokenizedSentence, TokenInfo } from "@/components/TokenizedSentence";
+import { AudioButton } from "@/components/AudioButton";
 
 const posLabels: Record<string, string> = {
   n: "noun",
@@ -240,8 +241,13 @@ export default function WordsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <div className="text-5xl font-bold text-gray-900 mb-2">
-                {selectedWord.hanzi}
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <div className="text-5xl font-bold text-gray-900">
+                  {selectedWord.hanzi}
+                </div>
+                {selectedWord.audioPath && (
+                  <AudioButton src={selectedWord.audioPath} size="lg" />
+                )}
               </div>
               {selectedWord.traditional &&
                 selectedWord.traditional !== selectedWord.hanzi && (
@@ -297,24 +303,31 @@ export default function WordsPage() {
                         key={sentence.id}
                         className="text-sm border-l-2 border-gray-200 pl-3"
                       >
-                        <div className="text-gray-900">
-                          {sentence.tokens && tokenData ? (
-                            <TokenizedSentence
-                              tokens={sentence.tokens}
-                              tokenData={tokenData}
-                              highlightWord={selectedWord?.hanzi}
-                            />
-                          ) : (
-                            sentence.chinese
+                        <div className="flex items-start gap-2">
+                          {sentence.audioPath && (
+                            <AudioButton src={sentence.audioPath} size="sm" />
                           )}
-                        </div>
-                        {showSentencePinyin && sentence.pinyin && (
-                          <div className="text-red-600 text-xs">
-                            {sentence.pinyin}
+                          <div className="flex-1">
+                            <div className="text-gray-900">
+                              {sentence.tokens && tokenData ? (
+                                <TokenizedSentence
+                                  tokens={sentence.tokens}
+                                  tokenData={tokenData}
+                                  highlightWord={selectedWord?.hanzi}
+                                />
+                              ) : (
+                                sentence.chinese
+                              )}
+                            </div>
+                            {showSentencePinyin && sentence.pinyin && (
+                              <div className="text-red-600 text-xs">
+                                {sentence.pinyin}
+                              </div>
+                            )}
+                            <div className="text-gray-500 text-xs">
+                              {sentence.english}
+                            </div>
                           </div>
-                        )}
-                        <div className="text-gray-500 text-xs">
-                          {sentence.english}
                         </div>
                       </div>
                     ))}

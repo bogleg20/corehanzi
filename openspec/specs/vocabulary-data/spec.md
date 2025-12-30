@@ -137,21 +137,30 @@ The system SHALL generate TTS audio files for words and sentences using edge-tts
 
 ### Requirement: Word Detail Display
 
-The system SHALL display word details in a dialog with readable part-of-speech labels and example sentences.
+The system SHALL display word details in a dialog with readable part-of-speech labels, example sentences, **and audio playback for words and sentences**.
 
-#### Scenario: Display part-of-speech labels
+#### Scenario: Play word audio
 
-- **WHEN** a word detail dialog is opened
-- **THEN** the system displays full part-of-speech names (e.g., "adjective", "noun, verb") instead of codes (e.g., "a", "n,v")
+- **WHEN** a word card or word detail modal is displayed
+- **AND** the word has an audio file
+- **THEN** the system displays an audio button
+- **AND** clicking the button plays the word pronunciation
 
-#### Scenario: Display example sentences
+#### Scenario: Play sentence audio
 
-- **WHEN** a word detail dialog is opened
-- **THEN** the system displays up to 3 example sentences containing that word
-- **AND** each sentence shows Chinese text, English translation, and optionally pinyin
+- **WHEN** example sentences are displayed in the word detail modal
+- **AND** a sentence has an audio file
+- **THEN** the system displays an audio button for that sentence
+- **AND** clicking the button plays the sentence audio
 
-#### Scenario: Toggle sentence pinyin
+### Requirement: Word Card Audio
 
-- **WHEN** viewing example sentences in the word detail dialog
-- **THEN** the user can toggle pinyin visibility on/off for all sentences in the dialog
+The system SHALL display audio playback buttons on word cards in the vocabulary browser.
+
+#### Scenario: Audio button on compact word card
+
+- **WHEN** viewing the word grid on the Words page
+- **AND** a word has an audio file
+- **THEN** the system displays a small audio button on the word card
+- **AND** clicking the button plays the word pronunciation without opening the detail modal
 

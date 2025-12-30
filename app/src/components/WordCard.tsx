@@ -124,6 +124,9 @@ export function WordCardCompact({
           <span className="text-sm text-red-600 ml-2">{word.pinyin}</span>
         </div>
         <div className="flex items-center gap-2">
+          {word.audioPath && (
+            <AudioButton src={word.audioPath} size="sm" />
+          )}
           {onToggleLearned && (
             <button
               onClick={(e) => {
