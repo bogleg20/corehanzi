@@ -51,15 +51,24 @@ def calculate_difficulty(tokens: list[str], hsk_words: dict[str, int], hsk_level
     """Calculate difficulty score using multiple factors.
 
     Factors:
-    - Sentence length (shorter = easier, 40% weight)
+    - Sentence length (ideal 4-10 tokens, 40% weight)
     - Average HSK level of words (lower = easier, 40% weight)
     - Non-HSK word ratio (lower = easier, 20% weight)
 
     Returns a score from 0.0 (easiest) to 1.0 (hardest).
     """
-    # Factor 1: Sentence length (normalized, 0-1)
-    # Cap at 20 tokens, shorter sentences are easier
-    length_score = min(len(tokens) / 20.0, 1.0)
+    # Factor 1: Sentence length (ideal range 4-10 tokens)
+    # Too short (<4) or too long (>15) gets penalized
+    token_count = len(tokens)
+    if token_count < 4:
+        # Too short - not useful as example (e.g., "是。")
+        length_score = 0.8 + (4 - token_count) * 0.1  # 1.0 for 1 token, 0.9 for 2, etc.
+    elif token_count <= 10:
+        # Ideal range
+        length_score = (token_count - 4) / 20.0  # 0.0 to 0.3
+    else:
+        # Getting longer
+        length_score = min(token_count / 20.0, 1.0)
 
     # Factor 2: Average HSK level of words (normalized, 0-1)
     # HSK 1 = 0, HSK 2 = 0.5, HSK 3 = 1.0
