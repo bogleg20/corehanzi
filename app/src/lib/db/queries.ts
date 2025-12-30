@@ -13,7 +13,7 @@ import {
   WordProgress,
   Settings,
 } from "./schema";
-import { eq, and, lte, inArray, like, or, sql, asc } from "drizzle-orm";
+import { eq, and, lte, inArray, notInArray, like, or, sql, asc } from "drizzle-orm";
 
 // ============ Words ============
 
@@ -72,7 +72,7 @@ export async function getUnlearnedWords(limit: number): Promise<Word[]> {
   return db
     .select()
     .from(words)
-    .where(sql`${words.id} NOT IN (${learnedWordIds.join(",")})`)
+    .where(notInArray(words.id, learnedWordIds))
     .orderBy(asc(words.hskLevel), asc(words.frequency))
     .limit(limit)
     .all();
