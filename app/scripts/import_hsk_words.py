@@ -37,37 +37,39 @@ def is_surname_only_form(form: dict) -> bool:
 
 
 def select_best_form(forms: list[dict]) -> dict:
-    """Select the best form, preferring common usage over surnames/archaic forms."""
+    """Select the best form for HSK learning.
+
+    Priority:
+    1. First form with lowercase pinyin (common pronunciation)
+    2. First form that isn't surname-only or archaic
+    3. Fallback to first form
+    """
     if not forms:
         return {}
 
-    # First pass: find non-surname forms
-    non_surname_forms = [f for f in forms if not is_surname_only_form(f)]
+    # First pass: find first form with lowercase pinyin (common usage)
+    for form in forms:
+        meanings = form.get("meanings", [])
+        if not meanings:
+            continue
+        first_meaning = meanings[0].lower()
+        if first_meaning.startswith("surname ") or first_meaning.startswith("(archaic)"):
+            continue
+        pinyin = form.get("transcriptions", {}).get("pinyin", "")
+        if pinyin and pinyin[0].islower():
+            return form
 
-    if non_surname_forms:
-        # Score each form:
-        # - Prefer lowercase pinyin (common usage) over uppercase (proper nouns)
-        # - Prefer non-archaic meanings
-        # - Prefer forms with more meanings
-        def score_form(form):
-            pinyin = form.get("transcriptions", {}).get("pinyin", "")
-            meanings = form.get("meanings", [])
-            first_meaning = meanings[0] if meanings else ""
+    # Second pass: any non-surname, non-archaic form
+    for form in forms:
+        meanings = form.get("meanings", [])
+        if not meanings:
+            continue
+        first_meaning = meanings[0].lower()
+        if first_meaning.startswith("surname ") or first_meaning.startswith("(archaic)"):
+            continue
+        return form
 
-            score = 0
-            # Lowercase pinyin = common pronunciation (+100)
-            if pinyin and pinyin[0].islower():
-                score += 100
-            # Non-archaic/variant meanings (+50)
-            if not first_meaning.startswith("(archaic)") and not first_meaning.startswith("variant of"):
-                score += 50
-            # More meanings = more useful (+count)
-            score += len(meanings)
-            return score
-
-        return max(non_surname_forms, key=score_form)
-
-    # Fallback to first form if all are surnames
+    # Fallback to first form if all are unsuitable
     return forms[0]
 
 
