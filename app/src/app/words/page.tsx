@@ -1,8 +1,37 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Word } from "@/lib/db/schema";
+import { Word, Sentence } from "@/lib/db/schema";
 import { WordCardCompact } from "@/components/WordCard";
+
+const posLabels: Record<string, string> = {
+  n: "noun",
+  v: "verb",
+  a: "adjective",
+  d: "adverb",
+  p: "preposition",
+  c: "conjunction",
+  r: "pronoun",
+  m: "numeral",
+  q: "measure word",
+  u: "particle",
+  e: "interjection",
+  f: "location",
+  t: "time",
+  b: "bound form",
+  g: "morpheme",
+  y: "modal particle",
+  cc: "coordinating conj.",
+  qv: "verb classifier",
+  qt: "time classifier",
+};
+
+function formatPos(pos: string): string {
+  return pos
+    .split(",")
+    .map((code) => posLabels[code.trim()] || code.trim())
+    .join(", ");
+}
 
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([]);
@@ -14,6 +43,9 @@ export default function WordsPage() {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [loadingSentences, setLoadingSentences] = useState(false);
+  const [showSentencePinyin, setShowSentencePinyin] = useState(true);
   const WORDS_PER_PAGE = 50;
 
   const fetchWords = useCallback(async () => {
@@ -40,6 +72,19 @@ export default function WordsPage() {
   useEffect(() => {
     fetchWords();
   }, [fetchWords]);
+
+  useEffect(() => {
+    if (selectedWord) {
+      setLoadingSentences(true);
+      fetch(`/api/words/${selectedWord.id}/sentences`)
+        .then((res) => res.json())
+        .then((data) => setSentences(data.slice(0, 3)))
+        .catch(() => setSentences([]))
+        .finally(() => setLoadingSentences(false));
+    } else {
+      setSentences([]);
+    }
+  }, [selectedWord]);
 
   const toggleLearned = async (wordId: number) => {
     const isCurrentlyLearned = learnedWordIds.has(wordId);
@@ -214,8 +259,47 @@ export default function WordsPage() {
                 </span>
                 {selectedWord.pos && (
                   <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    {selectedWord.pos}
+                    {formatPos(selectedWord.pos)}
                   </span>
+                )}
+              </div>
+
+              {/* Example Sentences */}
+              <div className="mt-6 text-left">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-700">
+                    Example Sentences
+                  </span>
+                  <button
+                    onClick={() => setShowSentencePinyin(!showSentencePinyin)}
+                    className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  >
+                    {showSentencePinyin ? "Hide" : "Show"} Pinyin
+                  </button>
+                </div>
+                {loadingSentences ? (
+                  <div className="text-sm text-gray-400">Loading...</div>
+                ) : sentences.length === 0 ? (
+                  <div className="text-sm text-gray-400">No examples found</div>
+                ) : (
+                  <div className="space-y-3">
+                    {sentences.map((sentence) => (
+                      <div
+                        key={sentence.id}
+                        className="text-sm border-l-2 border-gray-200 pl-3"
+                      >
+                        <div className="text-gray-900">{sentence.chinese}</div>
+                        {showSentencePinyin && sentence.pinyin && (
+                          <div className="text-red-600 text-xs">
+                            {sentence.pinyin}
+                          </div>
+                        )}
+                        <div className="text-gray-500 text-xs">
+                          {sentence.english}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
