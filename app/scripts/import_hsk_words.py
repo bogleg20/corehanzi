@@ -26,6 +26,51 @@ def get_hsk_level_number(levels: list[str]) -> int:
                 continue
     return 0
 
+
+def is_surname_only_form(form: dict) -> bool:
+    """Check if a form only contains surname meaning."""
+    meanings = form.get("meanings", [])
+    if not meanings:
+        return False
+    # Check if first meaning starts with "surname"
+    return meanings[0].lower().startswith("surname ")
+
+
+def select_best_form(forms: list[dict]) -> dict:
+    """Select the best form, preferring common usage over surnames/archaic forms."""
+    if not forms:
+        return {}
+
+    # First pass: find non-surname forms
+    non_surname_forms = [f for f in forms if not is_surname_only_form(f)]
+
+    if non_surname_forms:
+        # Score each form:
+        # - Prefer lowercase pinyin (common usage) over uppercase (proper nouns)
+        # - Prefer non-archaic meanings
+        # - Prefer forms with more meanings
+        def score_form(form):
+            pinyin = form.get("transcriptions", {}).get("pinyin", "")
+            meanings = form.get("meanings", [])
+            first_meaning = meanings[0] if meanings else ""
+
+            score = 0
+            # Lowercase pinyin = common pronunciation (+100)
+            if pinyin and pinyin[0].islower():
+                score += 100
+            # Non-archaic/variant meanings (+50)
+            if not first_meaning.startswith("(archaic)") and not first_meaning.startswith("variant of"):
+                score += 50
+            # More meanings = more useful (+count)
+            score += len(meanings)
+            return score
+
+        return max(non_surname_forms, key=score_form)
+
+    # Fallback to first form if all are surnames
+    return forms[0]
+
+
 def main():
     print(f"Loading HSK data from {HSK_FILE}...")
     with open(HSK_FILE, "r", encoding="utf-8") as f:
@@ -40,12 +85,12 @@ def main():
         if not any(lvl in TARGET_LEVELS for lvl in levels):
             continue
 
-        # Get the first form (primary pronunciation)
+        # Get the best form (preferring non-surname forms)
         forms = entry.get("forms", [])
         if not forms:
             continue
 
-        primary_form = forms[0]
+        primary_form = select_best_form(forms)
 
         # Extract data
         hanzi = entry.get("simplified", "")
@@ -83,9 +128,10 @@ def main():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Create words table
+    # Drop and recreate words table for clean import
+    cursor.execute("DROP TABLE IF EXISTS words")
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS words (
+        CREATE TABLE words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             hanzi TEXT NOT NULL,
             traditional TEXT,

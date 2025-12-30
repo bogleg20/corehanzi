@@ -102,32 +102,50 @@ interface WordCardCompactProps {
   word: Word;
   onClick?: () => void;
   progress?: "new" | "learning" | "mastered";
+  onToggleLearned?: () => void;
 }
 
 export function WordCardCompact({
   word,
   onClick,
   progress = "new",
+  onToggleLearned,
 }: WordCardCompactProps) {
-  const progressColors = {
-    new: "border-gray-200",
-    learning: "border-yellow-400",
-    mastered: "border-green-400",
-  };
+  const isLearned = progress === "mastered";
 
   return (
     <div
-      className={`bg-white rounded-lg border-2 ${progressColors[progress]} p-4 cursor-pointer hover:shadow-md transition-shadow`}
+      className="bg-white rounded-lg border-2 border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-2xl font-bold">{word.hanzi}</span>
+          <span className="text-2xl font-bold text-gray-900">{word.hanzi}</span>
           <span className="text-sm text-red-600 ml-2">{word.pinyin}</span>
         </div>
-        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-          HSK {word.hskLevel}
-        </span>
+        <div className="flex items-center gap-2">
+          {onToggleLearned && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLearned();
+              }}
+              className={`p-1 rounded-full transition-colors ${
+                isLearned
+                  ? "bg-green-100 text-green-600 ring-2 ring-green-500 hover:bg-green-200"
+                  : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+              }`}
+              title={isLearned ? "Mark as unlearned" : "Mark as learned"}
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+            HSK {word.hskLevel}
+          </span>
+        </div>
       </div>
       <div className="text-gray-600 text-sm mt-1 truncate">{word.definition}</div>
     </div>

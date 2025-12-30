@@ -6,8 +6,10 @@ import { WordCardCompact } from "@/components/WordCard";
 
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([]);
+  const [learnedWordIds, setLearnedWordIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState("all");
+  const [learnedFilter, setLearnedFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [page, setPage] = useState(1);
@@ -19,6 +21,7 @@ export default function WordsPage() {
     try {
       const params = new URLSearchParams();
       if (level !== "all") params.set("level", level);
+      if (learnedFilter !== "all") params.set("learned", learnedFilter);
       if (search) params.set("search", search);
       params.set("page", page.toString());
 
@@ -26,16 +29,45 @@ export default function WordsPage() {
       const data = await res.json();
       setWords(data.words);
       setTotalPages(Math.ceil(data.total / WORDS_PER_PAGE));
+      setLearnedWordIds(new Set(data.learnedWordIds || []));
     } catch (error) {
       console.error("Failed to fetch words:", error);
     } finally {
       setLoading(false);
     }
-  }, [level, search, page]);
+  }, [level, learnedFilter, search, page]);
 
   useEffect(() => {
     fetchWords();
   }, [fetchWords]);
+
+  const toggleLearned = async (wordId: number) => {
+    const isCurrentlyLearned = learnedWordIds.has(wordId);
+    // Optimistic update
+    const newLearnedIds = new Set(learnedWordIds);
+    if (isCurrentlyLearned) {
+      newLearnedIds.delete(wordId);
+    } else {
+      newLearnedIds.add(wordId);
+    }
+    setLearnedWordIds(newLearnedIds);
+
+    try {
+      const res = await fetch(`/api/words/${wordId}/learned`, {
+        method: isCurrentlyLearned ? "DELETE" : "POST",
+      });
+      if (!res.ok) {
+        // Revert on failure
+        setLearnedWordIds(learnedWordIds);
+      } else if (learnedFilter !== "all") {
+        // Refetch if filtering by learned status (word may need to move)
+        fetchWords();
+      }
+    } catch (error) {
+      console.error("Failed to toggle learned status:", error);
+      setLearnedWordIds(learnedWordIds);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -44,32 +76,55 @@ export default function WordsPage() {
       </h1>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        {/* HSK Level Filter */}
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex gap-4">
+          {/* HSK Level Filter */}
+          <div className="flex gap-2">
+            {["all", "1", "2", "3"].map((l) => (
+              <button
+                key={l}
+                onClick={() => { setLevel(l); setPage(1); }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  level === l
+                    ? "bg-red-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {l === "all" ? "All" : `HSK ${l}`}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search words..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Learned Status Filter */}
         <div className="flex gap-2">
-          {["all", "1", "2", "3"].map((l) => (
+          {[
+            { value: "all", label: "All Words" },
+            { value: "learned", label: "Learned" },
+            { value: "unlearned", label: "Unlearned" },
+          ].map((filter) => (
             <button
-              key={l}
-              onClick={() => { setLevel(l); setPage(1); }}
+              key={filter.value}
+              onClick={() => { setLearnedFilter(filter.value); setPage(1); }}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                level === l
-                  ? "bg-red-600 text-white"
+                learnedFilter === filter.value
+                  ? "bg-green-600 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              {l === "all" ? "All" : `HSK ${l}`}
+              {filter.label}
             </button>
           ))}
         </div>
-
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Search words..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-        />
       </div>
 
       {/* Word Grid */}
@@ -89,6 +144,8 @@ export default function WordsPage() {
                 key={word.id}
                 word={word}
                 onClick={() => setSelectedWord(word)}
+                progress={learnedWordIds.has(word.id) ? "mastered" : "new"}
+                onToggleLearned={() => toggleLearned(word.id)}
               />
             ))}
           </div>
@@ -162,6 +219,7 @@ export default function WordsPage() {
                 )}
               </div>
             </div>
+
             <button
               onClick={() => setSelectedWord(null)}
               className="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors"

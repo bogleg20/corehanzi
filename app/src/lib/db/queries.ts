@@ -236,6 +236,14 @@ export async function getLearnedWordsCount(): Promise<number> {
   return result?.count ?? 0;
 }
 
+export async function getLearnedWordIds(): Promise<Set<number>> {
+  const learned = db
+    .select({ wordId: wordProgress.wordId })
+    .from(wordProgress)
+    .all();
+  return new Set(learned.map((r) => r.wordId));
+}
+
 export async function getLearnedWordsByLevel(): Promise<
   { level: number; count: number }[]
 > {

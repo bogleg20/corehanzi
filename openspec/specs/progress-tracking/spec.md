@@ -59,29 +59,11 @@ The system SHALL track consecutive days of study activity.
 
 The system SHALL provide a searchable, paginated list of all vocabulary words with progress indicators.
 
-#### Scenario: Browse by HSK level
+#### Scenario: Filter by learned status
 
-- **WHEN** user selects an HSK level filter
-- **THEN** the system displays only words from that level
+- **WHEN** user selects a learned status filter (All, Learned, Unlearned)
+- **THEN** the system displays only words matching the filter
 - **AND** resets to the first page
-
-#### Scenario: Search vocabulary
-
-- **WHEN** user enters search query
-- **THEN** the system filters words matching hanzi, pinyin, or English definition
-- **AND** resets to the first page
-
-#### Scenario: Show word status
-
-- **WHEN** displaying word in browser
-- **THEN** the system indicates if word is new, learning, or mastered (based on interval)
-
-#### Scenario: Paginate word list
-
-- **WHEN** viewing the vocabulary browser
-- **THEN** the system displays 50 words per page with pagination controls
-- **AND** shows current page and total pages
-- **AND** allows navigation to previous/next pages
 
 ### Requirement: Pattern Reference
 
@@ -115,4 +97,25 @@ The system SHALL store user preferences for daily limits and audio settings.
 
 - **WHEN** user sets preferences
 - **THEN** the system stores them in localStorage for persistence across sessions
+
+### Requirement: Manual Learned Toggle
+
+The system SHALL allow users to manually mark words as learned (mastered) from the vocabulary browser.
+
+#### Scenario: Mark word as learned
+
+- **WHEN** user clicks the learned toggle for an unlearned word
+- **THEN** the system creates a progress record marking the word as mastered
+- **AND** the toggle displays as "learned" state
+
+#### Scenario: Unmark word as learned
+
+- **WHEN** user clicks the learned toggle for a learned word
+- **THEN** the system removes the progress record for that word
+- **AND** the toggle displays as "unlearned" state
+
+#### Scenario: Display learned status in modal
+
+- **WHEN** user opens word detail modal
+- **THEN** the system displays the current learned status with a toggle button
 
