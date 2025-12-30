@@ -11,6 +11,7 @@ from pathlib import Path
 # Paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 HSK_FILE = DATA_DIR / "hsk-complete.json"
+OVERRIDES_FILE = DATA_DIR / "word_overrides.json"
 DB_FILE = Path(__file__).parent.parent / "chinese.db"
 
 # HSK levels to import
@@ -27,45 +28,56 @@ def get_hsk_level_number(levels: list[str]) -> int:
     return 0
 
 
-def is_surname_only_form(form: dict) -> bool:
-    """Check if a form only contains surname meaning."""
+def is_unsuitable_form(form: dict) -> bool:
+    """Check if a form should be skipped (surname, archaic, variant, etc.)."""
     meanings = form.get("meanings", [])
     if not meanings:
-        return False
-    # Check if first meaning starts with "surname"
-    return meanings[0].lower().startswith("surname ")
+        return True
+    first_meaning = meanings[0].lower()
+    # Skip surname-only, archaic, variant, and euphemistic forms
+    skip_patterns = ["surname ", "(archaic)", "variant of", "old variant", "euphemistic"]
+    return any(p in first_meaning for p in skip_patterns)
 
 
-def select_best_form(forms: list[dict]) -> dict:
+def load_overrides() -> dict:
+    """Load word overrides from JSON file."""
+    if OVERRIDES_FILE.exists():
+        with open(OVERRIDES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def select_best_form(forms: list[dict], hanzi: str, overrides: dict) -> dict:
     """Select the best form for HSK learning.
 
     Priority:
-    1. First form with lowercase pinyin (common pronunciation)
-    2. First form that isn't surname-only or archaic
-    3. Fallback to first form
+    1. Check overrides file for manual corrections
+    2. First form with lowercase pinyin (common pronunciation)
+    3. First form that isn't surname/archaic/variant
+    4. Fallback to first form
     """
     if not forms:
         return {}
 
-    # First pass: find first form with lowercase pinyin (common usage)
+    # Check overrides first
+    if hanzi in overrides:
+        target_pinyin = overrides[hanzi].get("pinyin")
+        for form in forms:
+            pinyin = form.get("transcriptions", {}).get("pinyin", "")
+            if pinyin == target_pinyin:
+                return form
+
+    # First pass: find first suitable form with lowercase pinyin
     for form in forms:
-        meanings = form.get("meanings", [])
-        if not meanings:
-            continue
-        first_meaning = meanings[0].lower()
-        if first_meaning.startswith("surname ") or first_meaning.startswith("(archaic)"):
+        if is_unsuitable_form(form):
             continue
         pinyin = form.get("transcriptions", {}).get("pinyin", "")
         if pinyin and pinyin[0].islower():
             return form
 
-    # Second pass: any non-surname, non-archaic form
+    # Second pass: any suitable form
     for form in forms:
-        meanings = form.get("meanings", [])
-        if not meanings:
-            continue
-        first_meaning = meanings[0].lower()
-        if first_meaning.startswith("surname ") or first_meaning.startswith("(archaic)"):
+        if is_unsuitable_form(form):
             continue
         return form
 
@@ -78,6 +90,11 @@ def main():
     with open(HSK_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Load overrides
+    overrides = load_overrides()
+    if overrides:
+        print(f"Loaded {len(overrides)} word overrides")
+
     print(f"Total entries in dataset: {len(data)}")
 
     # Filter to target levels
@@ -87,15 +104,15 @@ def main():
         if not any(lvl in TARGET_LEVELS for lvl in levels):
             continue
 
-        # Get the best form (preferring non-surname forms)
+        # Get the best form
         forms = entry.get("forms", [])
         if not forms:
             continue
 
-        primary_form = select_best_form(forms)
+        hanzi = entry.get("simplified", "")
+        primary_form = select_best_form(forms, hanzi, overrides)
 
         # Extract data
-        hanzi = entry.get("simplified", "")
         traditional = primary_form.get("traditional", hanzi)
 
         transcriptions = primary_form.get("transcriptions", {})

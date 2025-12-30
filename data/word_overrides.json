@@ -1,0 +1,18 @@
+{
+  "吧": {
+    "pinyin": "ba",
+    "comment": "Modal particle (suggestion/surmise) is more common than bā (bar)"
+  },
+  "吗": {
+    "pinyin": "ma",
+    "comment": "Question particle is more common than má (what?)"
+  },
+  "着": {
+    "pinyin": "zhe",
+    "comment": "Aspect particle (ongoing action) is more common than zhāo (chess move)"
+  },
+  "啊": {
+    "pinyin": "a",
+    "comment": "Modal particle is more common than ā (interjection)"
+  }
+}

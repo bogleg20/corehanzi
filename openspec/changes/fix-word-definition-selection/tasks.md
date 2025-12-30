@@ -1,15 +1,17 @@
 ## 1. Update Import Script
 
-- [x] 1.1 Replace `select_best_form()` with simplified first-suitable-form logic
-- [x] 1.2 Add lowercase pinyin preference (common pronunciation over proper nouns)
+- [x] 1.1 Add `is_unsuitable_form()` to skip variant/archaic/surname forms
+- [x] 1.2 Add `load_overrides()` to read manual corrections from JSON
+- [x] 1.3 Update `select_best_form()` to check overrides first
 
-## 2. Re-import Data
+## 2. Create Overrides File
 
-- [x] 2.1 Run `python scripts/import_hsk_words.py` to re-import all words
-- [x] 2.2 Verify 没 shows méi/not have (not mò/drowned)
-- [x] 2.3 Spot-check other words: 中 now shows zhōng/within (not Zhōng/China)
+- [x] 2.1 Create `data/word_overrides.json` with modal particle corrections
+- [x] 2.2 Add overrides: 吧→ba, 吗→ma, 着→zhe, 啊→a
 
-## Notes
+## 3. Re-import and Verify
 
-- 吧 still shows bā (bar) instead of ba (modal particle) - both are lowercase so can't distinguish by case
-- Could add overrides file for edge cases in future iteration
+- [x] 3.1 Run `python scripts/import_hsk_words.py` to re-import all words
+- [x] 3.2 Verify modal particles: 吧=ba, 吗=ma, 着=zhe, 啊=a
+- [x] 3.3 Verify "variant of" words fixed: 布=cloth, 草=grass, 船=boat, etc.
+- [x] 3.4 Verify original fix still works: 没=méi (not mò)
