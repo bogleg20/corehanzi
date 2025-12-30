@@ -10,6 +10,9 @@ export default function WordsPage() {
   const [level, setLevel] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const WORDS_PER_PAGE = 50;
 
   const fetchWords = useCallback(async () => {
     setLoading(true);
@@ -17,16 +20,18 @@ export default function WordsPage() {
       const params = new URLSearchParams();
       if (level !== "all") params.set("level", level);
       if (search) params.set("search", search);
+      params.set("page", page.toString());
 
       const res = await fetch(`/api/words?${params}`);
       const data = await res.json();
-      setWords(data);
+      setWords(data.words);
+      setTotalPages(Math.ceil(data.total / WORDS_PER_PAGE));
     } catch (error) {
       console.error("Failed to fetch words:", error);
     } finally {
       setLoading(false);
     }
-  }, [level, search]);
+  }, [level, search, page]);
 
   useEffect(() => {
     fetchWords();
@@ -45,7 +50,7 @@ export default function WordsPage() {
           {["all", "1", "2", "3"].map((l) => (
             <button
               key={l}
-              onClick={() => setLevel(l)}
+              onClick={() => { setLevel(l); setPage(1); }}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 level === l
                   ? "bg-red-600 text-white"
@@ -62,7 +67,7 @@ export default function WordsPage() {
           type="text"
           placeholder="Search words..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
         />
       </div>
@@ -77,15 +82,40 @@ export default function WordsPage() {
           <div className="text-gray-500">No words found</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {words.map((word) => (
-            <WordCardCompact
-              key={word.id}
-              word={word}
-              onClick={() => setSelectedWord(word)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {words.map((word) => (
+              <WordCardCompact
+                key={word.id}
+                word={word}
+                onClick={() => setSelectedWord(word)}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 rounded-lg font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-gray-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Word Detail Modal */}

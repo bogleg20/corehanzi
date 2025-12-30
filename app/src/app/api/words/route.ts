@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { words } from "@/lib/db/schema";
-import { eq, like, or, asc } from "drizzle-orm";
+import { eq, like, or, asc, count, and } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,32 +12,43 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   try {
-    let query = db.select().from(words);
-
-    // Filter by HSK level
+    // Build where conditions
+    const conditions = [];
     if (level && level !== "all") {
-      query = query.where(eq(words.hskLevel, parseInt(level))) as typeof query;
+      conditions.push(eq(words.hskLevel, parseInt(level)));
     }
-
-    // Search
     if (search) {
       const pattern = `%${search}%`;
-      query = query.where(
+      conditions.push(
         or(
           like(words.hanzi, pattern),
           like(words.pinyin, pattern),
           like(words.definition, pattern)
         )
-      ) as typeof query;
+      );
     }
 
-    const result = query
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const countResult = db
+      .select({ count: count() })
+      .from(words)
+      .where(whereClause)
+      .get();
+    const total = countResult?.count ?? 0;
+
+    // Get paginated results
+    const result = db
+      .select()
+      .from(words)
+      .where(whereClause)
       .orderBy(asc(words.hskLevel), asc(words.frequency))
       .limit(limit)
       .offset(offset)
       .all();
 
-    return NextResponse.json(result);
+    return NextResponse.json({ words: result, total });
   } catch (error) {
     console.error("Error fetching words:", error);
     return NextResponse.json(
