@@ -2,12 +2,14 @@
 
 import { Sentence } from "@/lib/db/schema";
 import { AudioButton } from "./AudioButton";
+import { TokenizedSentence, TokenInfo } from "./TokenizedSentence";
 
 interface SentenceCardProps {
   sentence: Sentence;
   highlightWord?: string;
   showTranslation?: boolean;
   showPinyin?: boolean;
+  tokenData?: Record<string, TokenInfo>;
 }
 
 export function SentenceCard({
@@ -15,13 +17,25 @@ export function SentenceCard({
   highlightWord,
   showTranslation = true,
   showPinyin = false,
+  tokenData,
 }: SentenceCardProps) {
   const renderChinese = () => {
+    // Use tokenized rendering with tooltips if token data available
+    if (sentence.tokens && tokenData) {
+      return (
+        <TokenizedSentence
+          tokens={sentence.tokens}
+          tokenData={tokenData}
+          highlightWord={highlightWord}
+        />
+      );
+    }
+
+    // Fallback: simple highlighting without tooltips
     if (!highlightWord) {
       return sentence.chinese;
     }
 
-    // Highlight the target word
     const parts = sentence.chinese.split(highlightWord);
     return parts.map((part, i) => (
       <span key={i}>

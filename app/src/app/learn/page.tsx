@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Word, Sentence, Settings } from "@/lib/db/schema";
+import { Word, Sentence } from "@/lib/db/schema";
 import { WordCard } from "@/components/WordCard";
 import { SentenceCard } from "@/components/SentenceCard";
 import { ProgressBar } from "@/components/ProgressBar";
+import { TokenInfo } from "@/components/TokenizedSentence";
 
 export default function LearnPage() {
   const [words, setWords] = useState<Word[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [tokenData, setTokenData] = useState<Record<string, TokenInfo>>({});
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [showPinyin, setShowPinyin] = useState(false);
 
   const DAILY_LIMIT = 20;
@@ -48,10 +49,12 @@ export default function LearnPage() {
     try {
       const res = await fetch(`/api/words/${wordId}/sentences`);
       const data = await res.json();
-      setSentences(data.slice(0, 2)); // Show max 2 sentences
+      setSentences(data.sentences.slice(0, 2)); // Show max 2 sentences
+      setTokenData(data.tokenData || {});
     } catch (error) {
       console.error("Failed to fetch sentences:", error);
       setSentences([]);
+      setTokenData({});
     }
   };
 
@@ -59,7 +62,6 @@ export default function LearnPage() {
     try {
       const res = await fetch("/api/settings");
       const data = await res.json();
-      setSettings(data);
       setShowPinyin(data.showSentencePinyin);
     } catch (error) {
       console.error("Failed to fetch settings:", error);
@@ -84,6 +86,7 @@ export default function LearnPage() {
       setCurrentIndex(currentIndex + 1);
       setShowDetails(false);
       setSentences([]);
+      setTokenData({});
     } else {
       setSessionComplete(true);
     }
@@ -177,6 +180,7 @@ export default function LearnPage() {
               sentence={sentence}
               highlightWord={currentWord.hanzi}
               showPinyin={showPinyin}
+              tokenData={tokenData}
             />
           ))}
         </div>

@@ -47,6 +47,11 @@ export async function searchWords(query: string): Promise<Word[]> {
     .all();
 }
 
+export async function getWordsByHanziList(hanziList: string[]): Promise<Word[]> {
+  if (hanziList.length === 0) return [];
+  return db.select().from(words).where(inArray(words.hanzi, hanziList)).all();
+}
+
 export async function getUnlearnedWords(limit: number): Promise<Word[]> {
   // Get words that don't have progress records yet
   const learnedWordIds = db

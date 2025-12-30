@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSentencesForWord } from "@/lib/db/queries";
+import { getSentencesForWord, getWordsByHanziList } from "@/lib/db/queries";
 
 export async function GET(
   request: Request,
@@ -13,7 +13,28 @@ export async function GET(
 
   try {
     const sentences = await getSentencesForWord(wordId);
-    return NextResponse.json(sentences);
+
+    // Collect unique tokens from all sentences
+    const allTokens = new Set<string>();
+    for (const sentence of sentences) {
+      if (sentence.tokens) {
+        for (const token of sentence.tokens) {
+          allTokens.add(token);
+        }
+      }
+    }
+
+    // Look up word data for tokens
+    const words = await getWordsByHanziList(Array.from(allTokens));
+    const tokenData: Record<string, { pinyin: string; definition: string }> = {};
+    for (const word of words) {
+      tokenData[word.hanzi] = {
+        pinyin: word.pinyin,
+        definition: word.definition,
+      };
+    }
+
+    return NextResponse.json({ sentences, tokenData });
   } catch (error) {
     console.error("Error fetching sentences:", error);
     return NextResponse.json(

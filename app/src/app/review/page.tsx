@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Word, Sentence, WordProgress, Settings } from "@/lib/db/schema";
 import { ProgressBar } from "@/components/ProgressBar";
 import { getIntervalPreviews, QualityLabel } from "@/lib/srs/sm2";
+import { TokenizedSentence, TokenInfo } from "@/components/TokenizedSentence";
 
 type CardType = "word-to-def" | "def-to-word" | "sentence" | "cloze";
 
@@ -15,6 +16,7 @@ export default function ReviewPage() {
   const [reviews, setReviews] = useState<ReviewWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [tokenData, setTokenData] = useState<Record<string, TokenInfo>>({});
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [cardType, setCardType] = useState<CardType>("word-to-def");
@@ -55,10 +57,12 @@ export default function ReviewPage() {
     try {
       const res = await fetch(`/api/words/${wordId}/sentences`);
       const data = await res.json();
-      setSentences(data);
+      setSentences(data.sentences);
+      setTokenData(data.tokenData || {});
     } catch (error) {
       console.error("Failed to fetch sentences:", error);
       setSentences([]);
+      setTokenData({});
     }
   };
 
@@ -204,7 +208,17 @@ export default function ReviewPage() {
         }
         return (
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <p className="text-2xl text-gray-900 mb-2">{sentence.chinese}</p>
+            <p className="text-2xl text-gray-900 mb-2">
+              {sentence.tokens && tokenData ? (
+                <TokenizedSentence
+                  tokens={sentence.tokens}
+                  tokenData={tokenData}
+                  highlightWord={currentWord.hanzi}
+                />
+              ) : (
+                sentence.chinese
+              )}
+            </p>
             {settings?.showSentencePinyin && sentence.pinyin && (
               <p className="text-red-600 text-sm mb-4">{sentence.pinyin}</p>
             )}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRandomSentenceForPractice } from "@/lib/db/queries";
+import { getRandomSentenceForPractice, getWordsByHanziList } from "@/lib/db/queries";
 
 export async function GET() {
   try {
@@ -10,7 +10,19 @@ export async function GET() {
         { status: 404 }
       );
     }
-    return NextResponse.json(sentence);
+
+    // Look up word data for tokens
+    const tokens = sentence.tokens || [];
+    const words = await getWordsByHanziList(tokens);
+    const tokenData: Record<string, { pinyin: string; definition: string }> = {};
+    for (const word of words) {
+      tokenData[word.hanzi] = {
+        pinyin: word.pinyin,
+        definition: word.definition,
+      };
+    }
+
+    return NextResponse.json({ sentence, tokenData });
   } catch (error) {
     console.error("Error fetching practice sentence:", error);
     return NextResponse.json(

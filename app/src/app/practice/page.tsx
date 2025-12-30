@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Sentence } from "@/lib/db/schema";
+import { Tooltip } from "@/components/Tooltip";
+import { TokenInfo } from "@/components/TokenizedSentence";
 
 export default function PracticePage() {
   const [sentence, setSentence] = useState<Sentence | null>(null);
+  const [tokenData, setTokenData] = useState<Record<string, TokenInfo>>({});
   const [scrambledTokens, setScrambledTokens] = useState<string[]>([]);
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +32,11 @@ export default function PracticePage() {
         return;
       }
       const data = await res.json();
-      setSentence(data);
+      setSentence(data.sentence);
+      setTokenData(data.tokenData || {});
 
       // Scramble tokens
-      const tokens = data.tokens || [];
+      const tokens = data.sentence.tokens || [];
       const shuffled = [...tokens].sort(() => Math.random() - 0.5);
       setScrambledTokens(shuffled);
     } catch (error) {
@@ -168,16 +172,37 @@ export default function PracticePage() {
       {/* Word Bank */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-2 justify-center">
-          {scrambledTokens.map((token, index) => (
-            <button
-              key={`scrambled-${index}`}
-              onClick={() => handleTokenClick(token, false)}
-              disabled={showResult}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
-            >
-              {token}
-            </button>
-          ))}
+          {scrambledTokens.map((token, index) => {
+            const wordInfo = tokenData[token];
+            const button = (
+              <button
+                key={`scrambled-${index}`}
+                onClick={() => handleTokenClick(token, false)}
+                disabled={showResult}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                {token}
+              </button>
+            );
+
+            if (wordInfo) {
+              return (
+                <Tooltip
+                  key={`scrambled-${index}`}
+                  content={
+                    <span className="flex flex-col items-center gap-0.5">
+                      <span className="text-red-400">{wordInfo.pinyin}</span>
+                      <span>{wordInfo.definition}</span>
+                    </span>
+                  }
+                >
+                  {button}
+                </Tooltip>
+              );
+            }
+
+            return button;
+          })}
         </div>
       </div>
 

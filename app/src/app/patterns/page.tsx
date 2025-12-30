@@ -1,22 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Pattern, Sentence, Settings } from "@/lib/db/schema";
+import { Pattern, Sentence } from "@/lib/db/schema";
 import { SentenceCard } from "@/components/SentenceCard";
+import { TokenInfo } from "@/components/TokenizedSentence";
 
 export default function PatternsPage() {
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
   const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [tokenData, setTokenData] = useState<Record<string, TokenInfo>>({});
   const [loadingSentences, setLoadingSentences] = useState(false);
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [showPinyin, setShowPinyin] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPatterns();
-    fetchSettings();
   }, []);
 
   useEffect(() => {
@@ -46,24 +46,17 @@ export default function PatternsPage() {
     try {
       const res = await fetch(`/api/patterns?patternId=${patternId}`);
       const data = await res.json();
-      setSentences(data);
+      setSentences(data.sentences);
+      setTokenData(data.tokenData || {});
     } catch (error) {
       console.error("Failed to fetch sentences:", error);
+      setSentences([]);
+      setTokenData({});
     } finally {
       setLoadingSentences(false);
     }
   };
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch("/api/settings");
-      const data = await res.json();
-      setSettings(data);
-      setShowPinyin(data.showSentencePinyin);
-    } catch (error) {
-      console.error("Failed to fetch settings:", error);
-    }
-  };
 
   if (loading) {
     return (
@@ -141,6 +134,7 @@ export default function PatternsPage() {
                   key={sentence.id}
                   sentence={sentence}
                   showPinyin={showPinyin}
+                  tokenData={tokenData}
                 />
               ))}
             </div>

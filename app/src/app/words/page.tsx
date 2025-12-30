@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Word, Sentence } from "@/lib/db/schema";
 import { WordCardCompact } from "@/components/WordCard";
+import { TokenizedSentence, TokenInfo } from "@/components/TokenizedSentence";
 
 const posLabels: Record<string, string> = {
   n: "noun",
@@ -44,6 +45,7 @@ export default function WordsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [tokenData, setTokenData] = useState<Record<string, TokenInfo>>({});
   const [loadingSentences, setLoadingSentences] = useState(false);
   const [showSentencePinyin, setShowSentencePinyin] = useState(true);
   const WORDS_PER_PAGE = 50;
@@ -78,11 +80,18 @@ export default function WordsPage() {
       setLoadingSentences(true);
       fetch(`/api/words/${selectedWord.id}/sentences`)
         .then((res) => res.json())
-        .then((data) => setSentences(data.slice(0, 3)))
-        .catch(() => setSentences([]))
+        .then((data) => {
+          setSentences(data.sentences.slice(0, 3));
+          setTokenData(data.tokenData || {});
+        })
+        .catch(() => {
+          setSentences([]);
+          setTokenData({});
+        })
         .finally(() => setLoadingSentences(false));
     } else {
       setSentences([]);
+      setTokenData({});
     }
   }, [selectedWord]);
 
@@ -288,7 +297,17 @@ export default function WordsPage() {
                         key={sentence.id}
                         className="text-sm border-l-2 border-gray-200 pl-3"
                       >
-                        <div className="text-gray-900">{sentence.chinese}</div>
+                        <div className="text-gray-900">
+                          {sentence.tokens && tokenData ? (
+                            <TokenizedSentence
+                              tokens={sentence.tokens}
+                              tokenData={tokenData}
+                              highlightWord={selectedWord?.hanzi}
+                            />
+                          ) : (
+                            sentence.chinese
+                          )}
+                        </div>
                         {showSentencePinyin && sentence.pinyin && (
                           <div className="text-red-600 text-xs">
                             {sentence.pinyin}
