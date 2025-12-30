@@ -56,6 +56,7 @@ npm install
 cd app/scripts
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install jieba         # Required for sentence tokenization
 ```
 
 ### 4. Populate the database
@@ -83,6 +84,17 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Optional: Generate Sentence Pinyin
+
+To generate pinyin for all sentences (enables "Show Pinyin" feature):
+
+```bash
+cd app/scripts
+source venv/bin/activate
+pip install pypinyin
+python generate_pinyin.py
+```
+
 ## Optional: Generate Audio
 
 To generate TTS audio for words and sentences using Microsoft Edge TTS:
@@ -95,6 +107,46 @@ python generate_audio.py
 ```
 
 This creates MP3 files in `app/public/audio/`. Note: This can take a while as it processes thousands of entries with rate limiting.
+
+## Upgrading an Existing Database
+
+If you have an existing database and pull new changes that include schema updates, you have two options:
+
+### Option 1: Fresh Import (Recommended if you don't need to preserve progress)
+
+Delete the database and re-run the import:
+
+```bash
+cd app
+rm chinese.db
+python scripts/import_all.py
+python scripts/generate_pinyin.py  # Optional
+```
+
+### Option 2: Manual Migration (Preserves your learning progress)
+
+If you want to keep your existing progress data, apply schema changes manually:
+
+```bash
+cd app
+sqlite3 chinese.db
+```
+
+Then run the appropriate ALTER TABLE statements for any new columns. Recent schema additions:
+
+```sql
+-- Added: Pinyin for sentences (for "Show Pinyin" toggle)
+ALTER TABLE sentences ADD COLUMN pinyin TEXT;
+
+-- Added: Setting to show/hide sentence pinyin
+ALTER TABLE settings ADD COLUMN show_sentence_pinyin INTEGER NOT NULL DEFAULT 0;
+```
+
+After adding the `pinyin` column, run the pinyin generator to populate it:
+
+```bash
+python scripts/generate_pinyin.py
+```
 
 ## Database Schema
 
