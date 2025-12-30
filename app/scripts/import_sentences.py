@@ -24,8 +24,14 @@ DB_FILE = Path(__file__).parent.parent / "chinese.db"
 MIN_COVERAGE = 0.80
 
 def load_hsk_words(cursor) -> dict[str, int]:
-    """Load HSK words from database into a lookup dict."""
+    """Load HSK words from database into a lookup dict {hanzi: id}."""
     cursor.execute("SELECT hanzi, id FROM words")
+    return {row[0]: row[1] for row in cursor.fetchall()}
+
+
+def load_hsk_levels(cursor) -> dict[str, int]:
+    """Load HSK levels from database into a lookup dict {hanzi: level}."""
+    cursor.execute("SELECT hanzi, hsk_level FROM words")
     return {row[0]: row[1] for row in cursor.fetchall()}
 
 def clean_chinese(text: str) -> str:
@@ -39,6 +45,37 @@ def calculate_coverage(tokens: list[str], hsk_words: dict[str, int]) -> float:
         return 0.0
     matches = sum(1 for t in tokens if t in hsk_words)
     return matches / len(tokens)
+
+
+def calculate_difficulty(tokens: list[str], hsk_words: dict[str, int], hsk_levels: dict[str, int], coverage: float) -> float:
+    """Calculate difficulty score using multiple factors.
+
+    Factors:
+    - Sentence length (shorter = easier, 40% weight)
+    - Average HSK level of words (lower = easier, 40% weight)
+    - Non-HSK word ratio (lower = easier, 20% weight)
+
+    Returns a score from 0.0 (easiest) to 1.0 (hardest).
+    """
+    # Factor 1: Sentence length (normalized, 0-1)
+    # Cap at 20 tokens, shorter sentences are easier
+    length_score = min(len(tokens) / 20.0, 1.0)
+
+    # Factor 2: Average HSK level of words (normalized, 0-1)
+    # HSK 1 = 0, HSK 2 = 0.5, HSK 3 = 1.0
+    hsk_tokens = [t for t in tokens if t in hsk_levels]
+    if hsk_tokens:
+        avg_level = sum(hsk_levels[t] for t in hsk_tokens) / len(hsk_tokens)
+        level_score = (avg_level - 1) / 2.0  # HSK 1=0, HSK 3=1
+    else:
+        level_score = 1.0  # No HSK words = hardest
+
+    # Factor 3: Non-HSK word ratio (0-1)
+    non_hsk_ratio = 1.0 - coverage
+
+    # Combined score (weighted)
+    difficulty = 0.4 * length_score + 0.4 * level_score + 0.2 * non_hsk_ratio
+    return difficulty
 
 def main():
     print(f"Loading Tatoeba data from {TATOEBA_FILE}...")
@@ -66,16 +103,22 @@ def main():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Load HSK words
+    # Load HSK words and levels
     hsk_words = load_hsk_words(cursor)
+    hsk_levels = load_hsk_levels(cursor)
     print(f"Loaded {len(hsk_words)} HSK words for filtering")
+
+    # Clear existing data for clean re-import
+    cursor.execute("DROP TABLE IF EXISTS sentence_words")
+    cursor.execute("DROP TABLE IF EXISTS sentences")
 
     # Create sentences table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sentences (
+        CREATE TABLE sentences (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chinese TEXT NOT NULL,
             english TEXT NOT NULL,
+            pinyin TEXT,
             difficulty_score REAL,
             audio_path TEXT,
             tokens TEXT
@@ -84,7 +127,7 @@ def main():
 
     # Create sentence_words junction table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sentence_words (
+        CREATE TABLE sentence_words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sentence_id INTEGER NOT NULL,
             word_id INTEGER NOT NULL,
@@ -120,8 +163,8 @@ def main():
             skipped_count += 1
             continue
 
-        # Calculate difficulty score (inverse of coverage, lower = easier)
-        difficulty_score = 1.0 - coverage
+        # Calculate difficulty score using multiple factors
+        difficulty_score = calculate_difficulty(tokens, hsk_words, hsk_levels, coverage)
 
         # Insert sentence
         cursor.execute("""
