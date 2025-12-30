@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Pattern, Sentence, Settings } from "@/lib/db/schema";
 import { SentenceCard } from "@/components/SentenceCard";
 
@@ -11,6 +11,8 @@ export default function PatternsPage() {
   const [sentences, setSentences] = useState<Sentence[]>([]);
   const [loadingSentences, setLoadingSentences] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [showPinyin, setShowPinyin] = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPatterns();
@@ -20,6 +22,10 @@ export default function PatternsPage() {
   useEffect(() => {
     if (selectedPattern) {
       fetchSentences(selectedPattern.id);
+      // Scroll to detail panel after a short delay for render
+      setTimeout(() => {
+        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     }
   }, [selectedPattern]);
 
@@ -53,6 +59,7 @@ export default function PatternsPage() {
       const res = await fetch("/api/settings");
       const data = await res.json();
       setSettings(data);
+      setShowPinyin(data.showSentencePinyin);
     } catch (error) {
       console.error("Failed to fetch settings:", error);
     }
@@ -99,7 +106,7 @@ export default function PatternsPage() {
 
       {/* Pattern Detail */}
       {selectedPattern && (
-        <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+        <div ref={detailRef} className="mt-8 bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-2">
             {selectedPattern.name}
           </h2>
@@ -110,7 +117,19 @@ export default function PatternsPage() {
             <p className="text-gray-600 mb-4">{selectedPattern.description}</p>
           )}
 
-          <h3 className="font-semibold text-gray-900 mb-3">Example Sentences</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900">Example Sentences</h3>
+            <button
+              onClick={() => setShowPinyin(!showPinyin)}
+              className={`text-xs px-2 py-1 rounded transition-colors ${
+                showPinyin
+                  ? "bg-red-100 text-red-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {showPinyin ? "Hide Pinyin" : "Show Pinyin"}
+            </button>
+          </div>
           {loadingSentences ? (
             <div className="text-gray-500">Loading sentences...</div>
           ) : sentences.length === 0 ? (
@@ -121,7 +140,7 @@ export default function PatternsPage() {
                 <SentenceCard
                   key={sentence.id}
                   sentence={sentence}
-                  showPinyin={settings?.showSentencePinyin}
+                  showPinyin={showPinyin}
                 />
               ))}
             </div>

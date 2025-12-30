@@ -24,6 +24,10 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/stats");
       const data = await res.json();
+      if (!res.ok || !data.levelProgress) {
+        console.error("Invalid stats response:", data);
+        return;
+      }
       setStats(data);
     } catch (error) {
       console.error("Failed to fetch stats:", error);

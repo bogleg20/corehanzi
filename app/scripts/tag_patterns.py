@@ -12,46 +12,47 @@ from pathlib import Path
 DB_FILE = Path(__file__).parent.parent / "chinese.db"
 
 # Top 25 grammar patterns with regex rules
+# example_regex validates the sentence demonstrates the full structure (not just contains the keyword)
 PATTERNS = [
     # Basic Sentence Structure
-    {"name": "是 equivalence", "structure": "A 是 B", "regex": r"是", "description": "Expresses equivalence or identity"},
-    {"name": "有 possession", "structure": "A 有 B", "regex": r"有", "description": "Expresses possession or existence"},
-    {"name": "在 location", "structure": "A 在 B", "regex": r"在", "description": "Expresses location"},
-    {"name": "很 + adjective", "structure": "A 很 adj", "regex": r"很[^\s，。！？]+", "description": "Adjective predicate with 很"},
+    {"name": "是 equivalence", "structure": "A 是 B", "regex": r"是", "example_regex": r".+是.+", "description": "Expresses equivalence or identity"},
+    {"name": "有 possession", "structure": "A 有 B", "regex": r"有", "example_regex": r".+有.+", "description": "Expresses possession or existence"},
+    {"name": "在 location", "structure": "A 在 B", "regex": r"在", "example_regex": r".+在.+", "description": "Expresses location"},
+    {"name": "很 + adjective", "structure": "A 很 adj", "regex": r"很[^\s，。！？]+", "example_regex": r".+很.+", "description": "Adjective predicate with 很"},
 
     # Negation
-    {"name": "不 negation", "structure": "不 + verb/adj", "regex": r"不[^\s，。！？]+", "description": "General negation"},
-    {"name": "没有 negation", "structure": "没有", "regex": r"没有", "description": "Negation of 有 or past actions"},
-    {"name": "没 past negation", "structure": "没 + verb", "regex": r"没[^\s有，。！？]+", "description": "Negation of past actions"},
+    {"name": "不 negation", "structure": "不 + verb/adj", "regex": r"不[^\s，。！？]+", "example_regex": r".+不.+", "description": "General negation"},
+    {"name": "没有 negation", "structure": "没有", "regex": r"没有", "example_regex": r".+没有.+", "description": "Negation of 有 or past actions"},
+    {"name": "没 past negation", "structure": "没 + verb", "regex": r"没[^\s有，。！？]+", "example_regex": r".+没.+", "description": "Negation of past actions"},
 
     # Questions
-    {"name": "吗 yes/no", "structure": "statement + 吗", "regex": r"吗[？\?]?$", "description": "Yes/no question particle"},
-    {"name": "什么 what", "structure": "什么", "regex": r"什么", "description": "What question word"},
-    {"name": "谁 who", "structure": "谁", "regex": r"谁", "description": "Who question word"},
-    {"name": "哪里 where", "structure": "哪里/哪儿", "regex": r"哪[里儿]", "description": "Where question word"},
-    {"name": "为什么 why", "structure": "为什么", "regex": r"为什么", "description": "Why question word"},
-    {"name": "怎么 how", "structure": "怎么", "regex": r"怎么", "description": "How question word"},
+    {"name": "吗 yes/no", "structure": "statement + 吗", "regex": r"吗[？\?]?$", "example_regex": r".+吗", "description": "Yes/no question particle"},
+    {"name": "什么 what", "structure": "什么", "regex": r"什么", "example_regex": r".+什么.?", "description": "What question word"},
+    {"name": "谁 who", "structure": "谁", "regex": r"谁", "example_regex": r".+谁.?", "description": "Who question word"},
+    {"name": "哪里 where", "structure": "哪里/哪儿", "regex": r"哪[里儿]", "example_regex": r".+哪[里儿].?", "description": "Where question word"},
+    {"name": "为什么 why", "structure": "为什么", "regex": r"为什么", "example_regex": r"为什么.+", "description": "Why question word"},
+    {"name": "怎么 how", "structure": "怎么", "regex": r"怎么", "example_regex": r".?怎么.+", "description": "How question word"},
 
     # Tense & Aspect
-    {"name": "了 completed", "structure": "verb + 了", "regex": r"[^\s，。！？]+了", "description": "Completed action marker"},
-    {"name": "过 experience", "structure": "verb + 过", "regex": r"[^\s，。！？]+过", "description": "Experience marker"},
-    {"name": "在 ongoing", "structure": "在 + verb", "regex": r"在[^\s，。！？]+", "description": "Ongoing action marker"},
-    {"name": "正在 right now", "structure": "正在 + verb", "regex": r"正在", "description": "Currently in progress"},
+    {"name": "了 completed", "structure": "verb + 了", "regex": r"[^\s，。！？]+了", "example_regex": r".+了.?", "description": "Completed action marker"},
+    {"name": "过 experience", "structure": "verb + 过", "regex": r"[^\s，。！？]+过", "example_regex": r".+过.?", "description": "Experience marker"},
+    {"name": "在 ongoing", "structure": "在 + verb", "regex": r"在[^\s，。！？]+", "example_regex": r".+在.+", "description": "Ongoing action marker"},
+    {"name": "正在 right now", "structure": "正在 + verb", "regex": r"正在", "example_regex": r".+正在.+", "description": "Currently in progress"},
 
     # Desire, Ability, Obligation
-    {"name": "想 want to", "structure": "想 + verb", "regex": r"想[^\s，。！？]+", "description": "Want to do something"},
-    {"name": "要 want/need", "structure": "要 + verb/noun", "regex": r"要[^\s，。！？]+", "description": "Want or need"},
-    {"name": "能 can", "structure": "能 + verb", "regex": r"能[^\s，。！？]+", "description": "Can (circumstance)"},
-    {"name": "可以 may", "structure": "可以 + verb", "regex": r"可以", "description": "Can (permission)"},
-    {"name": "会 can/will", "structure": "会 + verb", "regex": r"会[^\s，。！？]+", "description": "Can (skill) or will (future)"},
+    {"name": "想 want to", "structure": "想 + verb", "regex": r"想[^\s，。！？]+", "example_regex": r".+想.+", "description": "Want to do something"},
+    {"name": "要 want/need", "structure": "要 + verb/noun", "regex": r"要[^\s，。！？]+", "example_regex": r".+要.+", "description": "Want or need"},
+    {"name": "能 can", "structure": "能 + verb", "regex": r"能[^\s，。！？]+", "example_regex": r".+能.+", "description": "Can (circumstance)"},
+    {"name": "可以 may", "structure": "可以 + verb", "regex": r"可以", "example_regex": r".+可以.+", "description": "Can (permission)"},
+    {"name": "会 can/will", "structure": "会 + verb", "regex": r"会[^\s，。！？]+", "example_regex": r".+会.+", "description": "Can (skill) or will (future)"},
 
     # Modifiers
-    {"name": "的 possession", "structure": "N + 的 + N", "regex": r"[^\s，。！？]+的[^\s，。！？]+", "description": "Possessive or attributive marker"},
-    {"name": "也 also", "structure": "也 + verb", "regex": r"也[^\s，。！？]+", "description": "Also/too"},
-    {"name": "都 all", "structure": "都 + verb", "regex": r"都[^\s，。！？]+", "description": "All/both"},
+    {"name": "的 possession", "structure": "N + 的 + N", "regex": r"[^\s，。！？]+的[^\s，。！？]+", "example_regex": r".+的.+", "description": "Possessive or attributive marker"},
+    {"name": "也 also", "structure": "也 + verb", "regex": r"也[^\s，。！？]+", "example_regex": r".+也.+", "description": "Also/too"},
+    {"name": "都 all", "structure": "都 + verb", "regex": r"都[^\s，。！？]+", "example_regex": r".+都.+", "description": "All/both"},
 
     # Comparison
-    {"name": "比 comparison", "structure": "A 比 B + adj", "regex": r"比[^\s，。！？]+", "description": "Comparison marker"},
+    {"name": "比 comparison", "structure": "A 比 B + adj", "regex": r"比[^\s，。！？]+", "example_regex": r".+比.+", "description": "Comparison marker"},
 ]
 
 def main():
@@ -114,18 +115,22 @@ def main():
 
     conn.commit()
 
-    # Update pattern examples
+    # Update pattern examples (6-25 chars, must match example_regex to show full structure)
     print("Adding example sentences to patterns...")
+    pattern_by_name = {p["name"]: p for p in PATTERNS}
     for pattern_name, pattern_id in pattern_ids.items():
+        example_regex = pattern_by_name[pattern_name].get("example_regex")
         cursor.execute("""
             SELECT s.chinese FROM sentences s
             JOIN sentence_patterns sp ON s.id = sp.sentence_id
-            WHERE sp.pattern_id = ?
-            LIMIT 1
+            WHERE sp.pattern_id = ? AND LENGTH(s.chinese) >= 6 AND LENGTH(s.chinese) <= 25
+            ORDER BY LENGTH(s.chinese)
         """, (pattern_id,))
-        result = cursor.fetchone()
-        if result:
-            cursor.execute("UPDATE patterns SET example = ? WHERE id = ?", (result[0], pattern_id))
+        # Find first sentence that matches the structure validation regex
+        for (chinese,) in cursor.fetchall():
+            if example_regex and re.search(example_regex, chinese):
+                cursor.execute("UPDATE patterns SET example = ? WHERE id = ?", (chinese, pattern_id))
+                break
 
     conn.commit()
 
