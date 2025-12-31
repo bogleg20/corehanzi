@@ -540,26 +540,41 @@ function OCRImport() {
     setMessage(null);
     let saved = 0;
     let skipped = 0;
+    let current = 0;
+    const total = selectedSentences.size;
 
     try {
       for (const index of Array.from(selectedSentences)) {
+        current++;
         const chinese = parsedSentences[index];
 
-        // Generate pinyin
-        const pinyinRes = await fetch("/api/pinyin", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: chinese }),
-        });
-        const pinyinData = await pinyinRes.json();
+        // Update progress
+        setProgress({ status: `Processing ${current}/${total}...`, progress: current / total });
 
-        // Create sentence (without English for now - user can edit later)
+        // Generate pinyin and translation in parallel
+        const [pinyinRes, translateRes] = await Promise.all([
+          fetch("/api/pinyin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: chinese }),
+          }),
+          fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: chinese }),
+          }),
+        ]);
+
+        const pinyinData = await pinyinRes.json();
+        const translateData = await translateRes.json();
+
+        // Create sentence with auto-translation
         const res = await fetch("/api/sentences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             chinese,
-            english: "", // Will need manual translation
+            english: translateData.translation || "",
             pinyin: pinyinData.pinyin || "",
             tagIds: selectedTags.map((t) => t.id),
           }),
@@ -574,11 +589,12 @@ function OCRImport() {
 
       setMessage({
         type: "success",
-        text: `Saved ${saved} sentences${skipped > 0 ? `, ${skipped} skipped (duplicates)` : ""}`,
+        text: `Saved ${saved} sentences with auto-translation${skipped > 0 ? `, ${skipped} skipped (duplicates)` : ""}`,
       });
 
       // Clear selection after saving
       setSelectedSentences(new Set());
+      setProgress({ status: "", progress: 0 });
     } catch {
       setMessage({ type: "error", text: "Failed to save sentences" });
     } finally {
@@ -716,7 +732,7 @@ function OCRImport() {
           </button>
 
           <p className="text-sm text-gray-500 mt-2 text-center">
-            Note: Imported sentences will need English translations added manually.
+            Sentences will be auto-translated using Google Translate.
           </p>
         </div>
       )}
