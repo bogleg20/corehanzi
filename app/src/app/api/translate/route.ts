@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await translate(text, { from, to });
+    const result = await translate(text, { from, to, forceFrom: true });
 
     return NextResponse.json({
       translation: result.text,

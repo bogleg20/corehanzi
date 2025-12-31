@@ -4,10 +4,23 @@ import { useState } from "react";
 import { Tag } from "@/lib/db/schema";
 import { TagSelector } from "@/components/TagSelector";
 
-type TabType = "words" | "sentences" | "ocr";
+type TabType = "manual" | "ocr";
+
+// Auto-detect if input is a word or sentence
+function detectContentType(chinese: string): "word" | "sentence" {
+  const trimmed = chinese.trim();
+  const hasSentencePunctuation = /[。！？]/.test(trimmed);
+  const charCount = trimmed.replace(/[^\u4e00-\u9fff]/g, "").length;
+
+  // Sentence if: has sentence punctuation OR more than 4 Chinese characters
+  if (hasSentencePunctuation || charCount > 4) {
+    return "sentence";
+  }
+  return "word";
+}
 
 export default function AddPage() {
-  const [activeTab, setActiveTab] = useState<TabType>("words");
+  const [activeTab, setActiveTab] = useState<TabType>("manual");
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -17,24 +30,14 @@ export default function AddPage() {
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex gap-8">
           <button
-            onClick={() => setActiveTab("words")}
+            onClick={() => setActiveTab("manual")}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "words"
+              activeTab === "manual"
                 ? "border-red-500 text-red-600"
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            Words
-          </button>
-          <button
-            onClick={() => setActiveTab("sentences")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "sentences"
-                ? "border-red-500 text-red-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Sentences
+            Manual
           </button>
           <button
             onClick={() => setActiveTab("ocr")}
@@ -50,221 +53,28 @@ export default function AddPage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "words" && <WordForm />}
-      {activeTab === "sentences" && <SentenceForm />}
+      {activeTab === "manual" && <ManualForm />}
       {activeTab === "ocr" && <OCRImport />}
     </div>
   );
 }
 
-function WordForm() {
-  const [hanzi, setHanzi] = useState("");
-  const [pinyin, setPinyin] = useState("");
-  const [definition, setDefinition] = useState("");
-  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [existingWord, setExistingWord] = useState<{ id: number; hanzi: string; pinyin: string; definition: string } | null>(null);
-
-  const generatePinyin = async () => {
-    if (!hanzi.trim()) return;
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/pinyin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: hanzi }),
-      });
-      const data = await res.json();
-      if (data.pinyin) {
-        setPinyin(data.pinyin);
-      }
-    } catch (error) {
-      console.error("Failed to generate pinyin:", error);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const checkExisting = async () => {
-    if (!hanzi.trim()) return;
-    try {
-      const res = await fetch(`/api/words?hanzi=${encodeURIComponent(hanzi)}`);
-      const data = await res.json();
-      if (data.words && data.words.length > 0) {
-        const word = data.words[0];
-        setExistingWord(word);
-        setPinyin(word.pinyin || "");
-        setDefinition(word.definition || "");
-      } else {
-        setExistingWord(null);
-      }
-    } catch (error) {
-      console.error("Failed to check existing word:", error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hanzi.trim() || !definition.trim()) {
-      setMessage({ type: "error", text: "Hanzi and definition are required" });
-      return;
-    }
-
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      const url = existingWord ? `/api/words/${existingWord.id}` : "/api/words";
-      const method = existingWord ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hanzi: hanzi.trim(),
-          pinyin: pinyin.trim(),
-          definition: definition.trim(),
-          tagIds: selectedTags.map((t) => t.id),
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to save word");
-      }
-
-      setMessage({
-        type: "success",
-        text: existingWord ? "Word updated successfully!" : "Word added successfully!",
-      });
-
-      // Reset form
-      setHanzi("");
-      setPinyin("");
-      setDefinition("");
-      setSelectedTags([]);
-      setExistingWord(null);
-    } catch (error) {
-      setMessage({ type: "error", text: (error as Error).message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {message && (
-        <div
-          className={`p-3 rounded-lg ${
-            message.type === "success"
-              ? "bg-green-50 text-green-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
-      {existingWord && (
-        <div className="p-3 rounded-lg bg-yellow-50 text-yellow-700">
-          Word already exists. Editing existing entry.
-        </div>
-      )}
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Hanzi (Chinese)
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={hanzi}
-            onChange={(e) => setHanzi(e.target.value)}
-            onBlur={() => {
-              checkExisting();
-              if (!pinyin) generatePinyin();
-            }}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-            placeholder="e.g. 你好"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Pinyin
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={pinyin}
-            onChange={(e) => setPinyin(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-            placeholder="e.g. nǐ hǎo"
-          />
-          <button
-            type="button"
-            onClick={generatePinyin}
-            disabled={generating || !hanzi.trim()}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 disabled:opacity-50"
-          >
-            {generating ? "..." : "Generate"}
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Definition
-        </label>
-        <input
-          type="text"
-          value={definition}
-          onChange={(e) => setDefinition(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-          placeholder="e.g. hello"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Tags
-        </label>
-        <TagSelector
-          selectedTags={selectedTags}
-          onTagsChange={setSelectedTags}
-          mode="assign"
-          allowCreate
-          placeholder="Select or create tags..."
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-      >
-        {loading ? "Saving..." : existingWord ? "Update Word" : "Add Word"}
-      </button>
-    </form>
-  );
-}
-
-function SentenceForm() {
+function ManualForm() {
   const [chinese, setChinese] = useState("");
-  const [english, setEnglish] = useState("");
   const [pinyin, setPinyin] = useState("");
+  const [english, setEnglish] = useState("");
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [generatingPinyin, setGeneratingPinyin] = useState(false);
+  const [generatingEnglish, setGeneratingEnglish] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [existingSentence, setExistingSentence] = useState<{ id: number } | null>(null);
+  const [existingItem, setExistingItem] = useState<{ id: number; type: "word" | "sentence" } | null>(null);
+
+  const contentType = detectContentType(chinese);
 
   const generatePinyin = async () => {
     if (!chinese.trim()) return;
-    setGenerating(true);
+    setGeneratingPinyin(true);
     try {
       const res = await fetch("/api/pinyin", {
         method: "POST",
@@ -278,28 +88,63 @@ function SentenceForm() {
     } catch (error) {
       console.error("Failed to generate pinyin:", error);
     } finally {
-      setGenerating(false);
+      setGeneratingPinyin(false);
+    }
+  };
+
+  const generateEnglish = async () => {
+    if (!chinese.trim()) return;
+    setGeneratingEnglish(true);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: chinese }),
+      });
+      const data = await res.json();
+      if (data.translation) {
+        setEnglish(data.translation);
+      }
+    } catch (error) {
+      console.error("Failed to generate translation:", error);
+    } finally {
+      setGeneratingEnglish(false);
     }
   };
 
   const checkExisting = async () => {
     if (!chinese.trim()) return;
+    const type = detectContentType(chinese);
+
     try {
-      const res = await fetch("/api/sentences/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chinese: chinese.trim() }),
-      });
-      const data = await res.json();
-      if (data.exists && data.sentence) {
-        setExistingSentence(data.sentence);
-        setEnglish(data.sentence.english || "");
-        setPinyin(data.sentence.pinyin || "");
+      if (type === "word") {
+        const res = await fetch(`/api/words?hanzi=${encodeURIComponent(chinese.trim())}`);
+        const data = await res.json();
+        if (data.words && data.words.length > 0) {
+          const word = data.words[0];
+          setExistingItem({ id: word.id, type: "word" });
+          setPinyin(word.pinyin || "");
+          setEnglish(word.definition || "");
+        } else {
+          setExistingItem(null);
+        }
       } else {
-        setExistingSentence(null);
+        const res = await fetch("/api/sentences/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chinese: chinese.trim() }),
+        });
+        const data = await res.json();
+        if (data.exists && data.sentence) {
+          setExistingItem({ id: data.sentence.id, type: "sentence" });
+          setPinyin(data.sentence.pinyin || "");
+          setEnglish(data.sentence.english || "");
+        } else {
+          setExistingItem(null);
+        }
       }
     } catch (error) {
-      console.error("Failed to check existing sentence:", error);
+      console.error("Failed to check existing:", error);
     }
   };
 
@@ -313,37 +158,56 @@ function SentenceForm() {
     setLoading(true);
     setMessage(null);
 
+    const type = detectContentType(chinese);
+
     try {
-      const url = existingSentence ? `/api/sentences/${existingSentence.id}` : "/api/sentences";
-      const method = existingSentence ? "PUT" : "POST";
+      let url: string;
+      let method: string;
+      let body: object;
+
+      if (type === "word") {
+        url = existingItem?.type === "word" ? `/api/words/${existingItem.id}` : "/api/words";
+        method = existingItem?.type === "word" ? "PUT" : "POST";
+        body = {
+          hanzi: chinese.trim(),
+          pinyin: pinyin.trim(),
+          definition: english.trim(),
+          tagIds: selectedTags.map((t) => t.id),
+        };
+      } else {
+        url = existingItem?.type === "sentence" ? `/api/sentences/${existingItem.id}` : "/api/sentences";
+        method = existingItem?.type === "sentence" ? "PUT" : "POST";
+        body = {
+          chinese: chinese.trim(),
+          pinyin: pinyin.trim(),
+          english: english.trim(),
+          tagIds: selectedTags.map((t) => t.id),
+        };
+      }
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chinese: chinese.trim(),
-          english: english.trim(),
-          pinyin: pinyin.trim(),
-          tagIds: selectedTags.map((t) => t.id),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || "Failed to save sentence");
+        throw new Error(error.error || `Failed to save ${type}`);
       }
 
+      const isUpdate = existingItem !== null;
       setMessage({
         type: "success",
-        text: existingSentence ? "Sentence updated successfully!" : "Sentence added successfully!",
+        text: `${type === "word" ? "Word" : "Sentence"} ${isUpdate ? "updated" : "added"} successfully!`,
       });
 
       // Reset form
       setChinese("");
-      setEnglish("");
       setPinyin("");
+      setEnglish("");
       setSelectedTags([]);
-      setExistingSentence(null);
+      setExistingItem(null);
     } catch (error) {
       setMessage({ type: "error", text: (error as Error).message });
     } finally {
@@ -365,16 +229,27 @@ function SentenceForm() {
         </div>
       )}
 
-      {existingSentence && (
+      {existingItem && (
         <div className="p-3 rounded-lg bg-yellow-50 text-yellow-700">
-          Sentence already exists. Editing existing entry.
+          {existingItem.type === "word" ? "Word" : "Sentence"} already exists. Editing existing entry.
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Chinese Sentence
-        </label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Chinese
+          </label>
+          {chinese.trim() && (
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              contentType === "word"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-green-100 text-green-700"
+            }`}>
+              {contentType === "word" ? "Word" : "Sentence"}
+            </span>
+          )}
+        </div>
         <textarea
           value={chinese}
           onChange={(e) => setChinese(e.target.value)}
@@ -383,8 +258,8 @@ function SentenceForm() {
             if (!pinyin) generatePinyin();
           }}
           rows={2}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none"
-          placeholder="e.g. 我今天很高兴。"
+          className="w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none"
+          placeholder="e.g. 你好 or 我今天很高兴。"
         />
       </div>
 
@@ -397,31 +272,41 @@ function SentenceForm() {
             type="text"
             value={pinyin}
             onChange={(e) => setPinyin(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
-            placeholder="e.g. wǒ jīn tiān hěn gāo xìng."
+            className="flex-1 px-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
+            placeholder="e.g. nǐ hǎo"
           />
           <button
             type="button"
             onClick={generatePinyin}
-            disabled={generating || !chinese.trim()}
+            disabled={generatingPinyin || !chinese.trim()}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 disabled:opacity-50"
           >
-            {generating ? "..." : "Generate"}
+            {generatingPinyin ? "..." : "Generate"}
           </button>
         </div>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          English Translation
+          English
         </label>
-        <textarea
-          value={english}
-          onChange={(e) => setEnglish(e.target.value)}
-          rows={2}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none"
-          placeholder="e.g. I am very happy today."
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={english}
+            onChange={(e) => setEnglish(e.target.value)}
+            className="flex-1 px-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none"
+            placeholder="e.g. hello"
+          />
+          <button
+            type="button"
+            onClick={generateEnglish}
+            disabled={generatingEnglish || !chinese.trim()}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 disabled:opacity-50"
+          >
+            {generatingEnglish ? "..." : "Generate"}
+          </button>
+        </div>
       </div>
 
       <div>
@@ -442,7 +327,7 @@ function SentenceForm() {
         disabled={loading}
         className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
       >
-        {loading ? "Saving..." : existingSentence ? "Update Sentence" : "Add Sentence"}
+        {loading ? "Saving..." : existingItem ? `Update ${contentType === "word" ? "Word" : "Sentence"}` : `Add ${contentType === "word" ? "Word" : "Sentence"}`}
       </button>
     </form>
   );
@@ -726,7 +611,7 @@ function OCRImport() {
                       type="text"
                       value={sentence.pinyin}
                       onChange={(e) => updateSentence(index, "pinyin", e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
+                      className="w-full px-3 py-1.5 text-sm text-gray-900 border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
                     />
                   </div>
                   <div>
@@ -735,7 +620,7 @@ function OCRImport() {
                       type="text"
                       value={sentence.english}
                       onChange={(e) => updateSentence(index, "english", e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
+                      className="w-full px-3 py-1.5 text-sm text-gray-900 border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
                     />
                   </div>
                 </div>
