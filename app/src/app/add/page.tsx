@@ -448,108 +448,54 @@ function SentenceForm() {
   );
 }
 
+interface SentenceData {
+  chinese: string;
+  pinyin: string;
+  english: string;
+  selected: boolean;
+}
+
 function OCRImport() {
   const [extractedText, setExtractedText] = useState("");
-  const [parsedSentences, setParsedSentences] = useState<string[]>([]);
+  const [sentenceData, setSentenceData] = useState<SentenceData[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState({ status: "", progress: 0 });
-  const [selectedSentences, setSelectedSentences] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processImage = async (file: File) => {
     setProcessing(true);
-    setProgress({ status: "Loading...", progress: 0 });
+    setProgress({ status: "Extracting text...", progress: 0 });
     setMessage(null);
+    setSentenceData([]);
 
     try {
       const { extractChineseText, parseSentences } = await import("@/lib/ocr");
 
       const text = await extractChineseText(file, (p) => {
-        setProgress(p);
+        setProgress({ status: p.status, progress: p.progress * 0.5 }); // First 50% for OCR
       });
 
       setExtractedText(text);
       const sentences = parseSentences(text);
-      setParsedSentences(sentences);
-      setSelectedSentences(new Set(sentences.map((_, i) => i)));
-    } catch (error) {
-      console.error("OCR error:", error);
-      setMessage({ type: "error", text: "Failed to process image" });
-    } finally {
-      setProcessing(false);
-    }
-  };
 
-  const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    for (const item of Array.from(items)) {
-      if (item.type.startsWith("image/")) {
-        const file = item.getAsFile();
-        if (file) {
-          setProcessing(true);
-          setProgress({ status: "Loading...", progress: 0 });
-          setMessage(null);
-
-          try {
-            const { extractChineseText, parseSentences } = await import("@/lib/ocr");
-
-            const text = await extractChineseText(file, (p) => {
-              setProgress(p);
-            });
-
-            setExtractedText(text);
-            const sentences = parseSentences(text);
-            setParsedSentences(sentences);
-            setSelectedSentences(new Set(sentences.map((_, i) => i)));
-          } catch (error) {
-            console.error("OCR error:", error);
-            setMessage({ type: "error", text: "Failed to process image" });
-          } finally {
-            setProcessing(false);
-          }
-        }
-        break;
+      if (sentences.length === 0) {
+        setMessage({ type: "error", text: "No sentences found in image" });
+        setProcessing(false);
+        return;
       }
-    }
-  };
 
-  const toggleSentence = (index: number) => {
-    const newSelected = new Set(selectedSentences);
-    if (newSelected.has(index)) {
-      newSelected.delete(index);
-    } else {
-      newSelected.add(index);
-    }
-    setSelectedSentences(newSelected);
-  };
+      // Generate pinyin and translations for all sentences
+      setProgress({ status: "Generating translations...", progress: 0.5 });
 
-  const handleSaveSelected = async () => {
-    if (selectedSentences.size === 0) {
-      setMessage({ type: "error", text: "No sentences selected" });
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
-    let saved = 0;
-    let skipped = 0;
-    let current = 0;
-    const total = selectedSentences.size;
-
-    try {
-      for (const index of Array.from(selectedSentences)) {
-        current++;
-        const chinese = parsedSentences[index];
-
-        // Update progress
-        setProgress({ status: `Processing ${current}/${total}...`, progress: current / total });
+      const enrichedSentences: SentenceData[] = [];
+      for (let i = 0; i < sentences.length; i++) {
+        const chinese = sentences[i];
+        setProgress({
+          status: `Translating ${i + 1}/${sentences.length}...`,
+          progress: 0.5 + (i / sentences.length) * 0.5,
+        });
 
         // Generate pinyin and translation in parallel
         const [pinyinRes, translateRes] = await Promise.all([
@@ -568,14 +514,81 @@ function OCRImport() {
         const pinyinData = await pinyinRes.json();
         const translateData = await translateRes.json();
 
-        // Create sentence with auto-translation
+        enrichedSentences.push({
+          chinese,
+          pinyin: pinyinData.pinyin || "",
+          english: translateData.translation || "",
+          selected: true,
+        });
+      }
+
+      setSentenceData(enrichedSentences);
+      setProgress({ status: "", progress: 0 });
+    } catch (error) {
+      console.error("OCR error:", error);
+      setMessage({ type: "error", text: "Failed to process image" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processImage(file);
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          await processImage(file);
+        }
+        break;
+      }
+    }
+  };
+
+  const toggleSentence = (index: number) => {
+    setSentenceData((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, selected: !s.selected } : s))
+    );
+  };
+
+  const updateSentence = (index: number, field: "pinyin" | "english", value: string) => {
+    setSentenceData((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
+    );
+  };
+
+  const selectedCount = sentenceData.filter((s) => s.selected).length;
+
+  const handleSaveSelected = async () => {
+    const toSave = sentenceData.filter((s) => s.selected);
+    if (toSave.length === 0) {
+      setMessage({ type: "error", text: "No sentences selected" });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    let saved = 0;
+    let skipped = 0;
+
+    try {
+      for (const sentence of toSave) {
         const res = await fetch("/api/sentences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chinese,
-            english: translateData.translation || "",
-            pinyin: pinyinData.pinyin || "",
+            chinese: sentence.chinese,
+            english: sentence.english,
+            pinyin: sentence.pinyin,
             tagIds: selectedTags.map((t) => t.id),
           }),
         });
@@ -589,12 +602,11 @@ function OCRImport() {
 
       setMessage({
         type: "success",
-        text: `Saved ${saved} sentences with auto-translation${skipped > 0 ? `, ${skipped} skipped (duplicates)` : ""}`,
+        text: `Saved ${saved} sentences${skipped > 0 ? `, ${skipped} skipped (duplicates)` : ""}`,
       });
 
-      // Clear selection after saving
-      setSelectedSentences(new Set());
-      setProgress({ status: "", progress: 0 });
+      // Remove saved sentences from the list
+      setSentenceData((prev) => prev.filter((s) => !s.selected));
     } catch {
       setMessage({ type: "error", text: "Failed to save sentences" });
     } finally {
@@ -656,30 +668,30 @@ function OCRImport() {
           <h3 className="text-sm font-medium text-gray-700 mb-2">
             Extracted Text
           </h3>
-          <div className="bg-gray-50 rounded-lg p-4 text-gray-700 text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
+          <div className="bg-gray-50 rounded-lg p-4 text-gray-700 text-sm whitespace-pre-wrap max-h-32 overflow-y-auto">
             {extractedText}
           </div>
         </div>
       )}
 
-      {/* Parsed sentences */}
-      {parsedSentences.length > 0 && !processing && (
+      {/* Parsed sentences with editable fields */}
+      {sentenceData.length > 0 && !processing && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-700">
-              Parsed Sentences ({selectedSentences.size}/{parsedSentences.length} selected)
+              Sentences ({selectedCount}/{sentenceData.length} selected)
             </h3>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedSentences(new Set(parsedSentences.map((_, i) => i)))}
+                onClick={() => setSentenceData((prev) => prev.map((s) => ({ ...s, selected: true })))}
                 className="text-xs text-red-600 hover:text-red-700"
               >
                 Select All
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedSentences(new Set())}
+                onClick={() => setSentenceData((prev) => prev.map((s) => ({ ...s, selected: false })))}
                 className="text-xs text-gray-600 hover:text-gray-700"
               >
                 Clear
@@ -687,24 +699,47 @@ function OCRImport() {
             </div>
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {parsedSentences.map((sentence, index) => (
-              <label
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            {sentenceData.map((sentence, index) => (
+              <div
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                  selectedSentences.has(index)
-                    ? "bg-red-50 border border-red-200"
-                    : "bg-gray-50 border border-transparent hover:bg-gray-100"
+                className={`p-4 rounded-lg border transition-colors ${
+                  sentence.selected
+                    ? "bg-red-50 border-red-200"
+                    : "bg-gray-50 border-gray-200"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={selectedSentences.has(index)}
-                  onChange={() => toggleSentence(index)}
-                  className="mt-1 w-4 h-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
-                />
-                <span className="text-gray-900">{sentence}</span>
-              </label>
+                <div className="flex items-start gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    checked={sentence.selected}
+                    onChange={() => toggleSentence(index)}
+                    className="mt-1 w-4 h-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                  />
+                  <p className="text-lg text-gray-900 flex-1">{sentence.chinese}</p>
+                </div>
+
+                <div className="ml-7 space-y-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Pinyin</label>
+                    <input
+                      type="text"
+                      value={sentence.pinyin}
+                      onChange={(e) => updateSentence(index, "pinyin", e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">English</label>
+                    <input
+                      type="text"
+                      value={sentence.english}
+                      onChange={(e) => updateSentence(index, "english", e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -725,15 +760,11 @@ function OCRImport() {
           <button
             type="button"
             onClick={handleSaveSelected}
-            disabled={saving || selectedSentences.size === 0}
+            disabled={saving || selectedCount === 0}
             className="w-full mt-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
           >
-            {saving ? "Saving..." : `Save ${selectedSentences.size} Sentences`}
+            {saving ? "Saving..." : `Save ${selectedCount} Sentences`}
           </button>
-
-          <p className="text-sm text-gray-500 mt-2 text-center">
-            Sentences will be auto-translated using Google Translate.
-          </p>
         </div>
       )}
     </div>
