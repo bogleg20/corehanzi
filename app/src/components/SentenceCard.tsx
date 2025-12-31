@@ -3,6 +3,7 @@
 import { Sentence } from "@/lib/db/schema";
 import { AudioButton } from "./AudioButton";
 import { TokenizedSentence, TokenInfo } from "./TokenizedSentence";
+import { BookmarkButton } from "./BookmarkButton";
 
 interface SentenceCardProps {
   sentence: Sentence;
@@ -10,6 +11,7 @@ interface SentenceCardProps {
   showTranslation?: boolean;
   showPinyin?: boolean;
   tokenData?: Record<string, TokenInfo>;
+  showBookmark?: boolean;
 }
 
 export function SentenceCard({
@@ -18,6 +20,7 @@ export function SentenceCard({
   showTranslation = true,
   showPinyin = false,
   tokenData,
+  showBookmark = false,
 }: SentenceCardProps) {
   const renderChinese = () => {
     // Use tokenized rendering with tooltips if token data available
@@ -59,9 +62,14 @@ export function SentenceCard({
             <p className="text-gray-600 text-base">{sentence.english}</p>
           )}
         </div>
-        {sentence.audioPath && (
-          <AudioButton src={sentence.audioPath} size="sm" />
-        )}
+        <div className="flex items-center gap-2">
+          {showBookmark && (
+            <BookmarkButton itemType="sentence" itemId={sentence.id} size="sm" />
+          )}
+          {sentence.audioPath && (
+            <AudioButton src={sentence.audioPath} size="sm" />
+          )}
+        </div>
       </div>
     </div>
   );

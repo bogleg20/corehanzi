@@ -11,6 +11,7 @@ interface SentenceCarouselProps {
   showPinyin: boolean;
   tokenData: Record<string, TokenInfo>;
   onPinyinToggle: () => void;
+  showBookmark?: boolean;
 }
 
 const ChevronLeftIcon = () => (
@@ -31,6 +32,7 @@ export function SentenceCarousel({
   showPinyin,
   tokenData,
   onPinyinToggle,
+  showBookmark = true,
 }: SentenceCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -118,6 +120,7 @@ export function SentenceCarousel({
                   highlightWord={highlightWord}
                   showPinyin={showPinyin}
                   tokenData={tokenData}
+                  showBookmark={showBookmark}
                 />
               </div>
             ))}

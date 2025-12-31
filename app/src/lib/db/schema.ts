@@ -73,15 +73,50 @@ export const wordProgress = sqliteTable("word_progress", {
   lastReview: text("last_review"), // ISO date string
 });
 
-// Sentence progress tracking
+// Sentence progress tracking (with full SRS fields)
 export const sentenceProgress = sqliteTable("sentence_progress", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   sentenceId: integer("sentence_id")
     .notNull()
     .unique()
     .references(() => sentences.id),
+  easeFactor: real("ease_factor").notNull().default(2.5),
+  interval: integer("interval").notNull().default(1),
+  nextReview: text("next_review"), // ISO date string
+  timesCorrect: integer("times_correct").notNull().default(0),
   timesSeen: integer("times_seen").notNull().default(0),
-  lastSeen: text("last_seen"), // ISO date string
+  lastReview: text("last_review"), // ISO date string
+  lastSeen: text("last_seen"), // ISO date string (kept for backwards compatibility)
+});
+
+// Tags for organizing content
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  color: text("color"),
+  createdAt: text("created_at").notNull(),
+});
+
+// Word-to-tag associations
+export const wordTags = sqliteTable("word_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  wordId: integer("word_id")
+    .notNull()
+    .references(() => words.id, { onDelete: "cascade" }),
+  tagId: integer("tag_id")
+    .notNull()
+    .references(() => tags.id, { onDelete: "cascade" }),
+});
+
+// Sentence-to-tag associations
+export const sentenceTags = sqliteTable("sentence_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sentenceId: integer("sentence_id")
+    .notNull()
+    .references(() => sentences.id, { onDelete: "cascade" }),
+  tagId: integer("tag_id")
+    .notNull()
+    .references(() => tags.id, { onDelete: "cascade" }),
 });
 
 // User settings (single row for single user)
@@ -105,4 +140,9 @@ export type Sentence = typeof sentences.$inferSelect;
 export type NewSentence = typeof sentences.$inferInsert;
 export type Pattern = typeof patterns.$inferSelect;
 export type WordProgress = typeof wordProgress.$inferSelect;
+export type SentenceProgress = typeof sentenceProgress.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
+export type WordTag = typeof wordTags.$inferSelect;
+export type SentenceTag = typeof sentenceTags.$inferSelect;

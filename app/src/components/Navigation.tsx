@@ -10,6 +10,7 @@ const navItems = [
   { href: "/practice", label: "Practice", icon: "✏️" },
   { href: "/words", label: "Words", icon: "📖" },
   { href: "/patterns", label: "Patterns", icon: "📝" },
+  { href: "/add", label: "Add", icon: "➕" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

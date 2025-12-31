@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { words, wordProgress } from "@/lib/db/schema";
+import { words, wordProgress, wordTags } from "@/lib/db/schema";
 import { eq, like, or, asc, count, and, inArray, notInArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
@@ -82,6 +82,63 @@ export async function GET(request: Request) {
     console.error("Error fetching words:", error);
     return NextResponse.json(
       { error: "Failed to fetch words" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { hanzi, pinyin, definition, tagIds } = await request.json();
+
+    if (!hanzi || !definition) {
+      return NextResponse.json(
+        { error: "Hanzi and definition are required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if word already exists
+    const existing = db
+      .select()
+      .from(words)
+      .where(eq(words.hanzi, hanzi.trim()))
+      .get();
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "Word already exists", existingId: existing.id },
+        { status: 409 }
+      );
+    }
+
+    // Insert new word
+    const result = db
+      .insert(words)
+      .values({
+        hanzi: hanzi.trim(),
+        pinyin: pinyin?.trim() || "",
+        definition: definition.trim(),
+        hskLevel: 0, // User-added words default to level 0
+        frequency: 0,
+      })
+      .returning()
+      .get();
+
+    // Add tags if provided
+    if (tagIds && tagIds.length > 0 && result) {
+      for (const tagId of tagIds) {
+        db.insert(wordTags)
+          .values({ wordId: result.id, tagId })
+          .run();
+      }
+    }
+
+    return NextResponse.json({ word: result });
+  } catch (error) {
+    console.error("Error creating word:", error);
+    return NextResponse.json(
+      { error: "Failed to create word" },
       { status: 500 }
     );
   }

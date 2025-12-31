@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUnlearnedWordsByTags, getTagByName } from "@/lib/db/queries";
+import { getUnlearnedSentences, getTagByName } from "@/lib/db/queries";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,12 +16,12 @@ export async function GET(request: Request) {
       tagIds = tags.filter((t) => t !== undefined).map((t) => t!.id);
     }
 
-    const words = await getUnlearnedWordsByTags(limit, tagIds);
-    return NextResponse.json(words);
+    const sentences = await getUnlearnedSentences(limit, tagIds);
+    return NextResponse.json(sentences);
   } catch (error) {
-    console.error("Error fetching unlearned words:", error);
+    console.error("Error fetching unlearned sentences:", error);
     return NextResponse.json(
-      { error: "Failed to fetch words" },
+      { error: "Failed to fetch unlearned sentences" },
       { status: 500 }
     );
   }

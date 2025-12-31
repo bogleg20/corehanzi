@@ -6,12 +6,18 @@ import {
   patterns,
   sentencePatterns,
   wordProgress,
+  sentenceProgress,
   settings,
+  tags,
+  wordTags,
+  sentenceTags,
   Word,
   Sentence,
   Pattern,
   WordProgress,
+  SentenceProgress,
   Settings,
+  Tag,
 } from "./schema";
 import { eq, and, lte, inArray, notInArray, like, or, sql, asc } from "drizzle-orm";
 
@@ -360,4 +366,361 @@ export async function getTodayStats(): Promise<{
     newWordsToday: newWordsToday?.count ?? 0,
     reviewsToday: reviewsToday?.count ?? 0,
   };
+}
+
+// ============ Tags ============
+
+export async function getAllTags(): Promise<Tag[]> {
+  return db.select().from(tags).orderBy(asc(tags.name)).all();
+}
+
+export async function getTagById(id: number): Promise<Tag | undefined> {
+  return db.select().from(tags).where(eq(tags.id, id)).get();
+}
+
+export async function getTagByName(name: string): Promise<Tag | undefined> {
+  return db.select().from(tags).where(eq(tags.name, name)).get();
+}
+
+export async function createTag(
+  name: string,
+  color?: string
+): Promise<Tag> {
+  const now = new Date().toISOString();
+  db.insert(tags).values({ name, color, createdAt: now }).run();
+  return db.select().from(tags).where(eq(tags.name, name)).get()!;
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  db.delete(tags).where(eq(tags.id, id)).run();
+}
+
+// ============ Word Tags ============
+
+export async function getTagsForWord(wordId: number): Promise<Tag[]> {
+  const tagIds = db
+    .select({ tagId: wordTags.tagId })
+    .from(wordTags)
+    .where(eq(wordTags.wordId, wordId))
+    .all()
+    .map((r) => r.tagId);
+
+  if (tagIds.length === 0) return [];
+
+  return db.select().from(tags).where(inArray(tags.id, tagIds)).all();
+}
+
+export async function addTagToWord(wordId: number, tagId: number): Promise<void> {
+  db.insert(wordTags)
+    .values({ wordId, tagId })
+    .onConflictDoNothing()
+    .run();
+}
+
+export async function removeTagFromWord(wordId: number, tagId: number): Promise<void> {
+  db.delete(wordTags)
+    .where(and(eq(wordTags.wordId, wordId), eq(wordTags.tagId, tagId)))
+    .run();
+}
+
+export async function getWordsByTags(tagIds: number[]): Promise<Word[]> {
+  if (tagIds.length === 0) return [];
+
+  // OR logic: get words that have ANY of the specified tags
+  const wordIds = db
+    .select({ wordId: wordTags.wordId })
+    .from(wordTags)
+    .where(inArray(wordTags.tagId, tagIds))
+    .all()
+    .map((r) => r.wordId);
+
+  if (wordIds.length === 0) return [];
+
+  // Get unique word IDs
+  const uniqueWordIds = Array.from(new Set(wordIds));
+
+  return db
+    .select()
+    .from(words)
+    .where(inArray(words.id, uniqueWordIds))
+    .orderBy(asc(words.hskLevel), asc(words.frequency))
+    .all();
+}
+
+export async function getUnlearnedWordsByTags(
+  limit: number,
+  tagIds?: number[]
+): Promise<Word[]> {
+  const learnedWordIds = db
+    .select({ wordId: wordProgress.wordId })
+    .from(wordProgress)
+    .all()
+    .map((r) => r.wordId);
+
+  let eligibleWordIds: number[] | undefined;
+
+  if (tagIds && tagIds.length > 0) {
+    // Get words with any of the specified tags
+    const taggedWordIds = db
+      .select({ wordId: wordTags.wordId })
+      .from(wordTags)
+      .where(inArray(wordTags.tagId, tagIds))
+      .all()
+      .map((r) => r.wordId);
+
+    eligibleWordIds = Array.from(new Set(taggedWordIds));
+  }
+
+  if (learnedWordIds.length === 0 && !eligibleWordIds) {
+    return db
+      .select()
+      .from(words)
+      .orderBy(asc(words.hskLevel), asc(words.frequency))
+      .limit(limit)
+      .all();
+  }
+
+  if (learnedWordIds.length === 0 && eligibleWordIds) {
+    return db
+      .select()
+      .from(words)
+      .where(inArray(words.id, eligibleWordIds))
+      .orderBy(asc(words.hskLevel), asc(words.frequency))
+      .limit(limit)
+      .all();
+  }
+
+  if (eligibleWordIds) {
+    // Filter by tags AND exclude learned
+    const unlearned = eligibleWordIds.filter((id) => !learnedWordIds.includes(id));
+    if (unlearned.length === 0) return [];
+
+    return db
+      .select()
+      .from(words)
+      .where(inArray(words.id, unlearned))
+      .orderBy(asc(words.hskLevel), asc(words.frequency))
+      .limit(limit)
+      .all();
+  }
+
+  return db
+    .select()
+    .from(words)
+    .where(notInArray(words.id, learnedWordIds))
+    .orderBy(asc(words.hskLevel), asc(words.frequency))
+    .limit(limit)
+    .all();
+}
+
+// ============ Sentence Tags ============
+
+export async function getTagsForSentence(sentenceId: number): Promise<Tag[]> {
+  const tagIds = db
+    .select({ tagId: sentenceTags.tagId })
+    .from(sentenceTags)
+    .where(eq(sentenceTags.sentenceId, sentenceId))
+    .all()
+    .map((r) => r.tagId);
+
+  if (tagIds.length === 0) return [];
+
+  return db.select().from(tags).where(inArray(tags.id, tagIds)).all();
+}
+
+export async function addTagToSentence(sentenceId: number, tagId: number): Promise<void> {
+  db.insert(sentenceTags)
+    .values({ sentenceId, tagId })
+    .onConflictDoNothing()
+    .run();
+}
+
+export async function removeTagFromSentence(sentenceId: number, tagId: number): Promise<void> {
+  db.delete(sentenceTags)
+    .where(and(eq(sentenceTags.sentenceId, sentenceId), eq(sentenceTags.tagId, tagId)))
+    .run();
+}
+
+export async function getSentencesByTags(tagIds: number[]): Promise<Sentence[]> {
+  if (tagIds.length === 0) return [];
+
+  // OR logic: get sentences that have ANY of the specified tags
+  const sentenceIds = db
+    .select({ sentenceId: sentenceTags.sentenceId })
+    .from(sentenceTags)
+    .where(inArray(sentenceTags.tagId, tagIds))
+    .all()
+    .map((r) => r.sentenceId);
+
+  if (sentenceIds.length === 0) return [];
+
+  // Get unique sentence IDs
+  const uniqueSentenceIds = Array.from(new Set(sentenceIds));
+
+  return db
+    .select()
+    .from(sentences)
+    .where(inArray(sentences.id, uniqueSentenceIds))
+    .orderBy(asc(sentences.difficultyScore))
+    .all();
+}
+
+// ============ Sentence Progress (SRS) ============
+
+export async function getSentenceProgress(
+  sentenceId: number
+): Promise<SentenceProgress | undefined> {
+  return db
+    .select()
+    .from(sentenceProgress)
+    .where(eq(sentenceProgress.sentenceId, sentenceId))
+    .get();
+}
+
+export async function createSentenceProgress(
+  sentenceId: number,
+  nextReview: string,
+  options?: {
+    easeFactor?: number;
+    interval?: number;
+  }
+): Promise<void> {
+  db.insert(sentenceProgress)
+    .values({
+      sentenceId,
+      nextReview,
+      easeFactor: options?.easeFactor ?? 2.5,
+      interval: options?.interval ?? 1,
+      timesCorrect: 0,
+      timesSeen: 1,
+    })
+    .run();
+}
+
+export async function updateSentenceProgress(
+  sentenceId: number,
+  data: Partial<{
+    easeFactor: number;
+    interval: number;
+    nextReview: string;
+    timesCorrect: number;
+    timesSeen: number;
+    lastReview: string;
+    lastSeen: string;
+  }>
+): Promise<void> {
+  db.update(sentenceProgress)
+    .set(data)
+    .where(eq(sentenceProgress.sentenceId, sentenceId))
+    .run();
+}
+
+export async function getDueSentenceReviews(
+  limit: number = 20,
+  tagIds?: number[]
+): Promise<(Sentence & { progress: SentenceProgress })[]> {
+  const today = new Date().toISOString().split("T")[0];
+
+  const dueProgress = db
+    .select()
+    .from(sentenceProgress)
+    .where(lte(sentenceProgress.nextReview, today))
+    .all();
+
+  if (dueProgress.length === 0) return [];
+
+  let sentenceIds = dueProgress.map((p) => p.sentenceId);
+
+  // Filter by tags if provided
+  if (tagIds && tagIds.length > 0) {
+    const taggedSentenceIds = db
+      .select({ sentenceId: sentenceTags.sentenceId })
+      .from(sentenceTags)
+      .where(inArray(sentenceTags.tagId, tagIds))
+      .all()
+      .map((r) => r.sentenceId);
+
+    const taggedSet = new Set(taggedSentenceIds);
+    sentenceIds = sentenceIds.filter((id) => taggedSet.has(id));
+  }
+
+  if (sentenceIds.length === 0) return [];
+
+  const dueSentences = db
+    .select()
+    .from(sentences)
+    .where(inArray(sentences.id, sentenceIds))
+    .limit(limit)
+    .all();
+
+  return dueSentences.map((sentence) => ({
+    ...sentence,
+    progress: dueProgress.find((p) => p.sentenceId === sentence.id)!,
+  }));
+}
+
+export async function getUnlearnedSentences(
+  limit: number,
+  tagIds?: number[]
+): Promise<Sentence[]> {
+  const learnedSentenceIds = db
+    .select({ sentenceId: sentenceProgress.sentenceId })
+    .from(sentenceProgress)
+    .all()
+    .map((r) => r.sentenceId);
+
+  let eligibleSentenceIds: number[] | undefined;
+
+  if (tagIds && tagIds.length > 0) {
+    const taggedSentenceIds = db
+      .select({ sentenceId: sentenceTags.sentenceId })
+      .from(sentenceTags)
+      .where(inArray(sentenceTags.tagId, tagIds))
+      .all()
+      .map((r) => r.sentenceId);
+
+    eligibleSentenceIds = Array.from(new Set(taggedSentenceIds));
+  }
+
+  if (learnedSentenceIds.length === 0 && !eligibleSentenceIds) {
+    return db
+      .select()
+      .from(sentences)
+      .orderBy(asc(sentences.difficultyScore))
+      .limit(limit)
+      .all();
+  }
+
+  if (learnedSentenceIds.length === 0 && eligibleSentenceIds) {
+    return db
+      .select()
+      .from(sentences)
+      .where(inArray(sentences.id, eligibleSentenceIds))
+      .orderBy(asc(sentences.difficultyScore))
+      .limit(limit)
+      .all();
+  }
+
+  if (eligibleSentenceIds) {
+    const unlearned = eligibleSentenceIds.filter(
+      (id) => !learnedSentenceIds.includes(id)
+    );
+    if (unlearned.length === 0) return [];
+
+    return db
+      .select()
+      .from(sentences)
+      .where(inArray(sentences.id, unlearned))
+      .orderBy(asc(sentences.difficultyScore))
+      .limit(limit)
+      .all();
+  }
+
+  return db
+    .select()
+    .from(sentences)
+    .where(notInArray(sentences.id, learnedSentenceIds))
+    .orderBy(asc(sentences.difficultyScore))
+    .limit(limit)
+    .all();
 }
